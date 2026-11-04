@@ -1,0 +1,586 @@
+"""
+Vertity AI - Backend Engine
+Inkloom AI Hackathon
+FastAPI backend for pre-publication brand governance, hybrid compliance auditing, and reviewer workflows.
+"""
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict
+from datetime import datetime
+from collections import Counter
+import os
+import json
+
+# Import the AI/ML Engine
+try:
+    from ai_engine import analyze_content_text, ContentAuditOutput
+    AI_ENGINE_LOADED = True
+except ImportError:
+    AI_ENGINE_LOADED = False
+
+app = FastAPI(
+    title="Vertity AI - Governance API",
+    description="Intelligent Brand Governance API that reviews content against brand guidelines and approved facts.",
+    version="1.0.0"
+)
+
+# Enable CORS so your Frontend team can connect seamlessly from React/Next.js/HTML
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Ensure upload directory exists and mount static files
+UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+GUIDELINE_UPLOADS_DIR = os.path.join(UPLOADS_DIR, "guidelines")
+os.makedirs(GUIDELINE_UPLOADS_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+
+# ---------------------------------------------------------
+# DATA MODELS (Schemas for Requests and Responses)
+# ---------------------------------------------------------
+
+class BrandGuideline(BaseModel):
+    id: str
+    category: str  # "Outdated Facts", "Unsupported Claims", "Tone & Terminology", "Visuals", "Accessibility"
+    rule_name: str
+    description: str
+    source_citation: Optional[str] = "Brand Rulebook Sec. 1.0"
+    supporting_doc_name: Optional[str] = None
+    supporting_doc_url: Optional[str] = None
+    forbidden_terms: Optional[List[str]] = []
+    approved_alternatives: Optional[List[str]] = []
+
+class AuditRequest(BaseModel):
+    title: Optional[str] = None
+    document_title: Optional[str] = None
+    content_type: Optional[str] = "blog"
+    channel_source: Optional[str] = "External Agency"  # In-House, External Agency, Freelancer, Generative AI
+    creator_name: Optional[str] = "Contributor"
+    content_text: Optional[str] = None
+    draft_text: Optional[str] = None
+
+    def get_title(self) -> str:
+        return self.document_title or self.title or "Untitled Document"
+
+    def get_text(self) -> str:
+        return self.draft_text or self.content_text or ""
+
+    def get_channel(self) -> str:
+        return self.channel_source or "In-House Draft"
+
+class FlaggedIssue(BaseModel):
+    id: Optional[str] = "FLAG-1"
+    guideline_id: Optional[str] = None
+    category: str  # "Outdated Facts", "Unsupported Claims", "Tone & Terminology", "Visuals", "Accessibility"
+    severity: str  # "high", "medium", "low"
+    original_text_snippet: str
+    explanation: str
+    suggested_correction: str
+    source_citation: Optional[str] = "Brand Rulebook Sec. 1.0"
+    supporting_doc_name: Optional[str] = None
+    supporting_doc_url: Optional[str] = None
+    check_type: Optional[str] = "Deterministic Rule"  # "Deterministic Rule" or "Semantic LLM"
+    confidence: Optional[str] = "High (100% Deterministic)"
+    issue_type: Optional[str] = "violation"  # "violation" (grounded source) or "suggestion" (heuristic)
+
+class AuditResponse(BaseModel):
+    submission_id: str
+    overall_compliance_score: int  # 0 to 100
+    status: str  # "clean", "needs_review", "flagged"
+    summary: str
+    flagged_issues: List[FlaggedIssue]
+    analyzed_at: str
+
+# ---------------------------------------------------------
+# IN-MEMORY KNOWLEDGE BASE (Guidelines & Approved Facts)
+# ---------------------------------------------------------
+
+BRAND_GUIDELINES = [
+    {
+        "id": "RULE-01",
+        "category": "Tone & Terminology",
+        "rule_name": "Customer Nomenclature Standards",
+        "description": "Always refer to clients as 'Growth Partners', never use 'clients' or 'users'.",
+        "source_citation": "Brand Rulebook Sec. 1.2 (Customer Nomenclature)",
+        "supporting_doc_name": "Customer_Nomenclature_SOP_2025.pdf",
+        "forbidden_terms": ["clients", "client", "users"],
+        "approved_alternatives": ["Growth Partners", "growth partners", "partners"]
+    },
+    {
+        "id": "RULE-02",
+        "category": "Unsupported Claims",
+        "rule_name": "Unsubstantiated Promotional Superlatives",
+        "description": "Claims of '#1' or 'fastest in the world' are prohibited without citing verified third-party benchmark evidence.",
+        "source_citation": "Brand Rulebook Sec. 4.1 (Legal Advertising & Superlatives)",
+        "supporting_doc_name": "Legal_Claims_Verification_Manual.pdf",
+        "forbidden_terms": ["#1 fastest in the world", "#1", "fastest in the world"],
+        "approved_alternatives": ["industry-leading", "high-performance", "top-tier"]
+    },
+    {
+        "id": "RULE-03",
+        "category": "Unsupported Claims",
+        "rule_name": "Absolute Software Quality Guarantees",
+        "description": "Absolute guarantees like '100% bug-free' violate legal advertising compliance; use SLA uptime metrics.",
+        "source_citation": "Brand Rulebook Sec. 4.2 (Technical SLA & Quality Claims)",
+        "supporting_doc_name": "SLA_Engineering_Reliability_Policy.pdf",
+        "forbidden_terms": ["guaranteed 100% bug-free", "100% bug-free", "zero bugs"],
+        "approved_alternatives": ["engineered for enterprise-grade 99.99% reliability", "thoroughly verified"]
+    },
+    {
+        "id": "RULE-04",
+        "category": "Unsupported Claims",
+        "rule_name": "Unverified Financial ROI Claims",
+        "description": "Promising 'undisputed 10x ROI' creates regulatory risk without customer case study citations.",
+        "source_citation": "Brand Rulebook Sec. 4.3 (Financial & Metrics Substantiation)",
+        "forbidden_terms": ["undisputed 10x ROI", "10x ROI without question", "10x ROI"],
+        "approved_alternatives": ["proven multi-fold ROI across enterprise deployments", "measurable ROI"]
+    },
+    {
+        "id": "RULE-05",
+        "category": "Outdated Facts",
+        "rule_name": "Approved 2025 Pricing & Packaging",
+        "description": "Legacy 2023 pricing of '$49/mo' has been discontinued. The approved Starter package is '$79/mo'.",
+        "source_citation": "Knowledge Base: Approved Pricing & Fact Sheet Q1 2025",
+        "supporting_doc_name": "Q1_2025_Enterprise_Pricing_Fact_Sheet.pdf",
+        "forbidden_terms": ["$49/mo", "$49 per month", "$49/month"],
+        "approved_alternatives": ["$79/mo Starter Tier", "Enterprise Tier"]
+    },
+    {
+        "id": "RULE-06",
+        "category": "Tone & Terminology",
+        "rule_name": "Empathetic, Professional & Non-Aggressive Voice",
+        "description": "Avoid aggressive pressure tactics ('buy now or regret it') or dismissive slang ('stupid simple', 'obviously').",
+        "source_citation": "Brand Rulebook Sec. 1.3 (Voice, Empathy & Professionalism)",
+        "forbidden_terms": ["buy now or regret it", "obviously", "stupid simple"],
+        "approved_alternatives": ["explore the platform today", "demonstrably", "intuitively designed"]
+    },
+    {
+        "id": "RULE-07",
+        "category": "Visuals",
+        "rule_name": "Approved Brand Asset & Color Standards",
+        "description": "Only use Primary Indigo (#6366F1), Slate Dark (#0F172A), and Cyan Accent (#06B6D4). Unapproved neon/red colors violate brand guidelines.",
+        "source_citation": "Brand Identity Manual Sec. 3.0 (Color System & Approved Palette)",
+        "supporting_doc_name": "Brand_Identity_Color_Palette_v2.pdf",
+        "forbidden_terms": ["legacy blue logo", "deprecated icon set"],
+        "approved_alternatives": ["Vertity Modern Mark v2.4", "approved enterprise icon set"]
+    },
+    {
+        "id": "RULE-08",
+        "category": "Accessibility",
+        "rule_name": "Accessibility & Inclusive Design Standards",
+        "description": "All published media must meet WCAG 2.1 AA standards (minimum 4.5:1 text-to-background contrast ratio and descriptive alt text).",
+        "source_citation": "WCAG 2.1 AA Digital Accessibility Standard Sec. 1.4.3",
+        "supporting_doc_name": "WCAG_2.1_AA_Accessibility_Standard.pdf",
+        "forbidden_terms": ["low contrast text", "missing alt text"],
+        "approved_alternatives": ["high-contrast AA compliant formatting", "descriptive alt text"]
+    }
+]
+
+# Simple in-memory storage for hackathon submissions with pre-loaded demo records
+SUBMISSIONS_DB = {
+    "SUB-0001": {
+        "request": {
+            "title": "Cloud Infrastructure Migration Announcement",
+            "content_type": "social_media",
+            "channel_source": "External Agency Draft",
+            "creator_name": "External Agency",
+            "content_text": "We are proud to serve our clients with the fastest in the world transaction speeds at just $49/mo."
+        },
+        "response": {
+            "submission_id": "SUB-0001",
+            "overall_compliance_score": 62,
+            "status": "needs_review",
+            "summary": "Flagged 3 grounded issues: outdated pricing ($49/mo), unverified superlative claim, and client terminology drift.",
+            "flagged_issues": [
+                {
+                    "id": "FLAG-1",
+                    "guideline_id": "RULE-05",
+                    "category": "Outdated Facts",
+                    "severity": "high",
+                    "original_text_snippet": "$49/mo",
+                    "explanation": "Violates Approved 2025 Pricing: Legacy 2023 pricing has been discontinued. The approved Starter tier is $79/mo.",
+                    "suggested_correction": "$79/mo Starter Tier",
+                    "source_citation": "Knowledge Base: Approved Pricing & Fact Sheet Q1 2025",
+                    "check_type": "Deterministic Exact Match",
+                    "confidence": "High (100% Rule Match)",
+                    "issue_type": "violation"
+                },
+                {
+                    "id": "FLAG-2",
+                    "guideline_id": "RULE-02",
+                    "category": "Unsupported Claims",
+                    "severity": "high",
+                    "original_text_snippet": "fastest in the world",
+                    "explanation": "Violates Unsubstantiated Promotional Superlatives: Speed claims require cited benchmark reports.",
+                    "suggested_correction": "industry-leading",
+                    "source_citation": "Brand Rulebook §4.1 (Legal Advertising & Superlatives)",
+                    "check_type": "Deterministic Exact Match",
+                    "confidence": "High (100% Rule Match)",
+                    "issue_type": "violation"
+                },
+                {
+                    "id": "FLAG-3",
+                    "guideline_id": "RULE-01",
+                    "category": "Tone & Terminology",
+                    "severity": "medium",
+                    "original_text_snippet": "clients",
+                    "explanation": "Violates Customer Nomenclature Standards: Always refer to clients as 'Growth Partners'.",
+                    "suggested_correction": "Growth Partners",
+                    "source_citation": "Brand Rulebook §1.2 (Customer Nomenclature)",
+                    "check_type": "Deterministic Exact Match",
+                    "confidence": "High (100% Rule Match)",
+                    "issue_type": "violation"
+                }
+            ],
+            "analyzed_at": "2026-11-04T09:15:00Z"
+        },
+        "workflow_state": "AI Audited"
+    },
+    "SUB-0002": {
+        "request": {
+            "title": "Partner Ecosystem Quarterly Newsletter",
+            "content_type": "blog",
+            "channel_source": "In-House Marketing",
+            "creator_name": "In-House Team",
+            "content_text": "We are delighted to celebrate our growth partners with high-performance infrastructure engineered for 99.99% availability."
+        },
+        "response": {
+            "submission_id": "SUB-0002",
+            "overall_compliance_score": 96,
+            "status": "clean",
+            "summary": "Content aligns strongly with brand tone, verified fact sheet, and preferred terminology.",
+            "flagged_issues": [],
+            "analyzed_at": "2026-11-04T08:30:00Z"
+        },
+        "workflow_state": "Approved",
+        "approved_by": "Brand Governance Director",
+        "approved_at": "2026-11-04T08:45:00Z"
+    }
+}
+
+# ---------------------------------------------------------
+# COMPLIANCE AUDIT ENGINE
+# ---------------------------------------------------------
+
+def evaluate_content_rules(text: str) -> List[FlaggedIssue]:
+    """
+    Evaluates text against deterministic brand rules with grounded source citations.
+    Hybrid Principle: Exact rules (terms, pricing, superlatives) are checked deterministically;
+    Nuanced tone & claim judgements use Gemini LLM.
+    """
+    flags = []
+    text_lower = text.lower()
+
+    for rule in BRAND_GUIDELINES:
+        for forbidden in rule.get("forbidden_terms", []):
+            if forbidden.lower() in text_lower:
+                severity = "high" if rule["category"] in ["Unsupported Claims", "Outdated Facts"] else "medium"
+                flags.append(FlaggedIssue(
+                    guideline_id=rule["id"],
+                    category=rule["category"],
+                    severity=severity,
+                    original_text_snippet=forbidden,
+                    explanation=f"Violates {rule['rule_name']}: {rule['description']}",
+                    suggested_correction=rule["approved_alternatives"][0] if rule.get("approved_alternatives") else "Revise or remove",
+                    source_citation=rule.get("source_citation", "Brand Rulebook Sec. 1.0"),
+                    supporting_doc_name=rule.get("supporting_doc_name"),
+                    supporting_doc_url=rule.get("supporting_doc_url"),
+                    check_type="Deterministic Exact Match",
+                    confidence="High (100% Rule Match)",
+                    issue_type="violation"
+                ))
+    
+    return flags
+
+# ---------------------------------------------------------
+# API ENDPOINTS
+# ---------------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
+def serve_frontend_app():
+    """Serves the Vertity AI web application directly at the root URL."""
+    frontend_path = os.path.join(os.path.dirname(__file__), "frontend_app.html")
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
+    return HTMLResponse("<h2>Vertity AI Backend is Running. frontend_app.html not found.</h2>")
+
+@app.get("/api/health")
+def health_check():
+    return {
+        "status": "online",
+        "service": "Vertity AI Governance API",
+        "version": "1.0.0",
+        "docs_url": "http://127.0.0.1:8000/docs"
+    }
+
+@app.get("/api/guidelines", response_model=List[BrandGuideline])
+def get_guidelines():
+    """Returns the company's approved brand guidelines and rules."""
+    return BRAND_GUIDELINES
+
+@app.get("/api/audit")
+def audit_status_check():
+    """Health check for Frontend UI header status indicator."""
+    return {"status": "online", "service": "Vertity AI Audit Service"}
+
+@app.post("/api/audit", response_model=AuditResponse)
+def audit_content(payload: AuditRequest):
+    """
+    Main Endpoint: Receives content draft and returns compliance score,
+    flagged issues, explanations, and suggested corrections.
+    Combines fast deterministic rules with Gemini AI semantic auditing.
+    """
+    text_to_audit = payload.get_text()
+    title_to_audit = payload.get_title()
+
+    all_flags = []
+    flag_counter = 1
+
+    # 1. Deterministic Rule Matching (Banned words, strict terminology)
+    det_flags = evaluate_content_rules(text_to_audit)
+    for f in det_flags:
+        f.id = f"FLAG-{flag_counter}"
+        flag_counter += 1
+        all_flags.append(f)
+
+    # 2. Semantic AI Auditing via Gemini (if ai_engine is loaded)
+    ai_summary = f"Content audited for draft '{title_to_audit}' against brand guidelines."
+    ai_score = 100 - (len(all_flags) * 15)
+
+    if AI_ENGINE_LOADED and text_to_audit:
+        try:
+            guidelines_text = "\n".join([f"- {r['category']}: {r['description']}" for r in BRAND_GUIDELINES])
+            ai_output = analyze_content_text(text_to_audit, guidelines_text)
+            ai_summary = ai_output.summary
+            ai_score = ai_output.overall_compliance_score
+
+            # Append any unique issues flagged by the AI
+            existing_snippets = {f.original_text_snippet.lower() for f in all_flags}
+            for issue in ai_output.flagged_issues:
+                if issue.original_text_snippet.lower() not in existing_snippets:
+                    all_flags.append(FlaggedIssue(
+                        id=f"FLAG-{flag_counter}",
+                        category=issue.category,
+                        severity=issue.severity,
+                        original_text_snippet=issue.original_text_snippet,
+                        explanation=issue.explanation,
+                        suggested_correction=issue.suggested_correction,
+                        source_citation=getattr(issue, 'source_citation', 'Brand Knowledge Base §1.0'),
+                        check_type=getattr(issue, 'check_type', 'Semantic LLM'),
+                        confidence=getattr(issue, 'confidence', 'High (92% Grounded)'),
+                        issue_type=getattr(issue, 'issue_type', 'violation')
+                    ))
+                    flag_counter += 1
+        except Exception as e:
+            print(f"[Warning] AI Engine call failed gracefully: {e}")
+
+    # Determine status & final compliance score
+    final_score = max(0, min(100, ai_score if AI_ENGINE_LOADED else (100 - len(all_flags) * 15)))
+    status = "clean" if len(all_flags) == 0 else ("needs_review" if final_score > 60 else "flagged")
+    submission_id = f"SUB-{len(SUBMISSIONS_DB) + 1:04d}"
+
+    result = AuditResponse(
+        submission_id=submission_id,
+        overall_compliance_score=final_score,
+        status=status,
+        summary=ai_summary,
+        flagged_issues=all_flags,
+        analyzed_at=datetime.utcnow().isoformat()
+    )
+
+    # Save to in-memory history for review workflow
+    SUBMISSIONS_DB[submission_id] = {
+        "request": payload.dict(),
+        "response": result.dict(),
+        "workflow_state": "AI Audited"
+    }
+
+    return result
+
+@app.get("/api/submissions")
+def list_submissions():
+    """Lists all submitted documents for the Review & Approval dashboard."""
+    return list(SUBMISSIONS_DB.values())
+
+@app.post("/api/submissions/{sub_id}/approve")
+def approve_submission(sub_id: str, reviewer_name: str = "Brand Manager"):
+    """Approves a document for final publication."""
+    if sub_id not in SUBMISSIONS_DB:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    
+    SUBMISSIONS_DB[sub_id]["workflow_state"] = "Approved"
+    SUBMISSIONS_DB[sub_id]["approved_by"] = reviewer_name
+    SUBMISSIONS_DB[sub_id]["approved_at"] = datetime.utcnow().isoformat()
+    
+    return {"message": f"Submission {sub_id} successfully approved by {reviewer_name}!"}
+
+@app.post("/api/submissions/{sub_id}/reject")
+def reject_submission(sub_id: str, reviewer_name: str = "Brand Manager", notes: str = "Please revise flagged areas."):
+    """Requests revisions from the creator with reviewer notes."""
+    if sub_id not in SUBMISSIONS_DB:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    
+    SUBMISSIONS_DB[sub_id]["workflow_state"] = "Revision Requested"
+    SUBMISSIONS_DB[sub_id]["reviewer_notes"] = notes
+    SUBMISSIONS_DB[sub_id]["reviewed_by"] = reviewer_name
+    SUBMISSIONS_DB[sub_id]["reviewed_at"] = datetime.utcnow().isoformat()
+    
+    return {
+        "submission_id": sub_id,
+        "workflow_state": "Revision Requested",
+        "notes": notes,
+        "message": f"Revision requested for {sub_id}."
+    }
+
+@app.post("/api/audit-file", response_model=AuditResponse)
+async def audit_file(
+    file: UploadFile = File(...),
+    content_type: str = Form("document"),
+    creator_name: str = Form("Creator")
+):
+    """
+    Multi-Format Document Upload: Accepts .txt, .md, .csv, or text files,
+    extracts the text, and runs the brand governance audit pipeline.
+    """
+    try:
+        content_bytes = await file.read()
+        text = content_bytes.decode("utf-8", errors="ignore")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {e}")
+    
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+    
+    payload = AuditRequest(
+        title=file.filename or "Uploaded Document",
+        content_type=content_type,
+        content_text=text,
+        creator_name=creator_name
+    )
+    return audit_content(payload)
+
+@app.post("/api/guidelines", response_model=BrandGuideline)
+def add_guideline(rule: BrandGuideline):
+    """Admin Only: Allows Brand Admins to add a new guideline rule dynamically."""
+    for r in BRAND_GUIDELINES:
+        if r["id"] == rule.id:
+            raise HTTPException(status_code=400, detail="Guideline ID already exists")
+    
+    BRAND_GUIDELINES.append(rule.dict())
+    return rule
+
+@app.put("/api/guidelines/{rule_id}", response_model=BrandGuideline)
+def update_guideline(rule_id: str, updated_rule: BrandGuideline):
+    """Admin Only: Allows Brand Admins to update an existing guideline rule."""
+    for i, r in enumerate(BRAND_GUIDELINES):
+        if r["id"] == rule_id:
+            BRAND_GUIDELINES[i] = updated_rule.dict()
+            return updated_rule
+    raise HTTPException(status_code=404, detail=f"Guideline {rule_id} not found")
+
+@app.delete("/api/guidelines/{rule_id}")
+def delete_guideline(rule_id: str):
+    """Admin Only: Allows Brand Admins to delete a guideline rule."""
+    global BRAND_GUIDELINES
+    initial_len = len(BRAND_GUIDELINES)
+    BRAND_GUIDELINES = [r for r in BRAND_GUIDELINES if r["id"] != rule_id]
+    if len(BRAND_GUIDELINES) == initial_len:
+        raise HTTPException(status_code=404, detail=f"Guideline {rule_id} not found")
+    return {"message": f"Guideline {rule_id} successfully deleted", "id": rule_id}
+
+@app.post("/api/guidelines/upload-doc")
+async def upload_guideline_document(file: UploadFile = File(...)):
+    """Admin Only: Uploads a supporting brand book excerpt or policy fact sheet document."""
+    file_path = os.path.join(GUIDELINE_UPLOADS_DIR, file.filename)
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "file_size": len(content),
+            "file_url": f"/uploads/guidelines/{file.filename}",
+            "message": f"Document '{file.filename}' attached successfully!"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload document: {e}")
+
+@app.get("/api/analytics")
+def get_governance_analytics():
+    """
+    Governance Insights Engine: Aggregates repeated mistakes across all drafts,
+    identifying unclear brand guidelines and common compliance pitfalls.
+    """
+    total_submissions = len(SUBMISSIONS_DB)
+    if total_submissions == 0:
+        return {
+            "total_audited_documents": 0,
+            "average_compliance_score": 100,
+            "status_breakdown": {"clean": 0, "needs_review": 0, "flagged": 0},
+            "category_violation_counts": {},
+            "top_violation_terms": [],
+            "executive_governance_insights": [
+                "No submissions recorded yet. The system is ready to audit content."
+            ]
+        }
+    
+    all_scores = []
+    status_counts = Counter()
+    category_counts = Counter()
+    term_counts = Counter()
+
+    for item in SUBMISSIONS_DB.values():
+        resp = item.get("response", {})
+        all_scores.append(resp.get("overall_compliance_score", 100))
+        status_counts[resp.get("status", "clean")] += 1
+        for issue in resp.get("flagged_issues", []):
+            cat = issue.get("category", "General")
+            category_counts[cat] += 1
+            snippet = issue.get("original_text_snippet", "")
+            if snippet:
+                term_counts[snippet.lower()] += 1
+
+    avg_score = round(sum(all_scores) / len(all_scores), 1)
+
+    # Generate explainable governance insights
+    insights = []
+    if category_counts:
+        top_cat, top_cat_count = category_counts.most_common(1)[0]
+        insights.append(
+            f"'{top_cat}' is the most frequent violation category ({top_cat_count} occurrences). Consider clarifying related policy documentation."
+        )
+    if term_counts:
+        top_term, top_term_count = term_counts.most_common(1)[0]
+        insights.append(
+            f"The term '{top_term}' was repeatedly flagged ({top_term_count} times). Ensure all writers are updated with approved synonyms."
+        )
+    if avg_score < 70:
+        insights.append("Company-wide compliance score is below target (70%). Pre-publication AI linting should be mandated across all teams.")
+    else:
+        insights.append("Overall brand compliance is healthy. High adoption of verified brand standards observed.")
+
+    return {
+        "total_audited_documents": total_submissions,
+        "average_compliance_score": avg_score,
+        "status_breakdown": dict(status_counts),
+        "category_violation_counts": dict(category_counts),
+        "top_violation_terms": [
+            {"term": term, "count": count} for term, count in term_counts.most_common(5)
+        ],
+        "executive_governance_insights": insights
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    # Support dynamic PORT environment variable provided by cloud hosts (Render, Railway, Heroku)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)

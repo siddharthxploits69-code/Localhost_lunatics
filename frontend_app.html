@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vertity AI - Enterprise Brand Governance Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    code, .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .pulse-glow {
+      animation: pulse-glow-anim 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-glow-anim {
+      0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.6)); }
+      50% { opacity: 0.6; filter: drop-shadow(0 0 2px rgba(34, 197, 94, 0.2)); }
+    }
+
+    @keyframes ticker-slide {
+      0% { transform: translateY(0); }
+      20% { transform: translateY(-24px); }
+      40% { transform: translateY(-48px); }
+      60% { transform: translateY(-72px); }
+      80% { transform: translateY(-96px); }
+      100% { transform: translateY(0); }
+    }
+    .ticker-content {
+      animation: ticker-slide 12s infinite cubic-bezier(0.65, 0, 0.35, 1);
+    }
+
+    .highlight-violation {
+      background: rgba(239, 68, 68, 0.25);
+      border-bottom: 2px dashed #ef4444;
+      border-radius: 4px;
+      padding: 1px 4px;
+      cursor: pointer;
+    }
+    .highlight-violation:hover {
+      background: rgba(239, 68, 68, 0.45);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.8); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden relative">
+
+  <!-- DYNAMIC MOVING NEURAL BRAND WEB CANVAS -->
+  <canvas id="bg-network-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+  <!-- BACKGROUND GLOWS -->
+  <div class="fixed top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="fixed bottom-0 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+  <!-- TOP HEADER & BRAND BAR -->
+  <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-3.5">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-500/25 border border-indigo-400/30">
+        🛡️
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center space-x-1">
+            <span>Vertity</span>
+            <span class="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI</span>
+          </h1>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.4 Enterprise</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Autonomous Pre-Publication Brand Governance & Human-in-the-Loop Cockpit</p>
+      </div>
+    </div>
+
+    <!-- 4 ADMINS & RBAC PROFILE SELECTOR -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2 bg-slate-900 border border-indigo-500/30 px-3 py-1.5 rounded-xl text-xs shadow-inner">
+        <span class="text-slate-400 font-medium">Logged in:</span>
+        <select id="team-user-selector" onchange="handleUserRoleChange(this.value)" class="bg-slate-950 text-indigo-300 font-bold border border-slate-700 rounded-lg px-2 py-0.5 focus:outline-none cursor-pointer text-xs">
+          <option value="admin-1" selected>👑 Team Admin 1 (Backend & AI Lead)</option>
+          <option value="admin-2">👑 Team Admin 2 (Frontend & UX Lead)</option>
+          <option value="admin-3">👑 Team Admin 3 (Workflow & Integration Lead)</option>
+          <option value="admin-4">👑 Team Admin 4 (Product & Governance Lead)</option>
+          <option value="creator">✍️ External Agency (Creator - Locked Rulebook)</option>
+          <option value="reviewer">🛡️ External Reviewer (Reviewer - Locked Rulebook)</option>
+        </select>
+        <span id="role-pill-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Admin Full Access</span>
+      </div>
+
+      <!-- 4 NAVIGATION TABS -->
+      <div class="flex items-center space-x-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs font-semibold shadow-inner">
+        <button onclick="switchTab('creator')" id="tab-creator" class="px-3 py-1.5 rounded-lg transition bg-indigo-600 text-white shadow-md flex items-center space-x-1.5">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+          <span>Creator Studio</span>
+        </button>
+        <button onclick="switchTab('rulebook')" id="tab-rulebook" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center space-x-1.5">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Brand Rulebook</span>
+        </button>
+        <button onclick="switchTab('reviews')" id="tab-reviews" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center space-x-1.5">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Review Cockpit</span>
+          <span id="badge-pending-count" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-mono">2</span>
+        </button>
+        <button onclick="switchTab('analytics')" id="tab-analytics" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center space-x-1.5">
+          <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Governance Insights</span>
+        </button>
+      </div>
+
+      <!-- STATUS INDICATOR -->
+      <div class="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-mono">
+        <span id="api-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-glow"></span>
+        <span id="api-status-text" class="text-slate-300 font-sans text-[11px]">System Live</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIVE TELEMETRY TICKER -->
+  <div class="border-b border-slate-800/60 bg-slate-900/40 px-6 py-1.5 flex items-center justify-between text-xs overflow-hidden">
+    <div class="flex items-center space-x-2 flex-1">
+      <span class="flex items-center space-x-1 text-indigo-400 font-bold uppercase tracking-wider text-[10px]">
+        <i data-lucide="radio" class="w-3 h-3 animate-pulse"></i>
+        <span>Live Telemetry:</span>
+      </span>
+      <div class="h-6 overflow-hidden flex-1 relative">
+        <div class="ticker-content text-slate-400 text-[11px] font-mono space-y-1">
+          <p>🟢 Engine online: Dual Deterministic + Gemini 2.5 Flash active at /api/audit</p>
+          <p>⚡ Rulebook sync: RULE-01 (Terminology), RULE-02 (Claims), RULE-03 (Tone) loaded</p>
+          <p>🛡️ Human-in-the-Loop: Review state machine active (Draft → Under Review → Approved)</p>
+          <p>📊 Governance Analytics: Tracking repeat violation heatmaps across departments</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3 text-[11px] text-slate-400 font-mono">
+      <span>Workflow: <strong class="text-emerald-400 font-sans">Role-Based Approval Enabled</strong></span>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-6 relative z-10">
+
+    <!-- ============================================================== -->
+    <!-- 1. CREATOR STUDIO TAB -->
+    <!-- ============================================================== -->
+    <div id="view-creator" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT: WORKSPACE & EDITOR (7 Cols) -->
+      <div class="lg:col-span-7 bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between backdrop-blur">
+        <div>
+          <!-- WORKSPACE MODE & 3 DEMO DATASETS -->
+          <div class="flex items-center justify-between mb-4 border-b border-slate-800/80 pb-3">
+            <div class="flex items-center space-x-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+              <button onclick="setEditorMode('write')" id="mode-btn-write" class="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 flex items-center space-x-1.5 transition">
+                <i data-lucide="pen-tool" class="w-3 h-3"></i>
+                <span>Direct Canvas</span>
+              </button>
+              <button onclick="setEditorMode('upload-doc')" id="mode-btn-doc" class="px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition flex items-center space-x-1.5">
+                <i data-lucide="file-up" class="w-3 h-3"></i>
+                <span>Upload File</span>
+              </button>
+              <button onclick="setEditorMode('visual')" id="mode-btn-visual" class="px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition flex items-center space-x-1.5">
+                <i data-lucide="image" class="w-3 h-3"></i>
+                <span>Visual Palette</span>
+              </button>
+            </div>
+
+            <!-- MEMBER 4's 3 GOLDEN DEMO DATASETS SELECTOR -->
+            <div class="flex items-center space-x-1">
+              <span class="text-[10px] text-slate-400 font-bold uppercase">Demo Cases:</span>
+              <button onclick="loadDemoDataset('disaster')" title="Load Disaster Draft (~45% Score)" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-1 rounded-lg font-semibold transition active:scale-95">
+                🔴 Disaster Draft
+              </button>
+              <button onclick="loadDemoDataset('fixed')" title="Load 1-Click Fixed Draft (~92% Score)" class="text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-1 rounded-lg font-semibold transition active:scale-95">
+                🟡 1-Click Fixed
+              </button>
+              <button onclick="loadDemoDataset('clean')" title="Load Clean Corporate Release (100% Score)" class="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded-lg font-semibold transition active:scale-95">
+                🟢 Clean Release
+              </button>
+            </div>
+          </div>
+
+          <!-- DOCUMENT DETAILS -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3.5 mb-4">
+            <div class="md:col-span-2">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Document Title</label>
+              <input id="doc-title" type="text" value="Q4 Cloud Infrastructure & Platform Release" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Content Type</label>
+              <select id="doc-type" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                <option value="blog">Blog Post</option>
+                <option value="social_media">Social Media Post</option>
+                <option value="press_release">Press Release</option>
+                <option value="ad_copy">Ad Copy</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Publishing Channel</label>
+              <select id="doc-channel" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-sm text-cyan-300 font-medium focus:outline-none focus:border-cyan-500 transition">
+                <option value="External Agency">🌐 External Agency</option>
+                <option value="In-House Employee">🏢 In-House Team</option>
+                <option value="Freelancer">✍️ Freelancer</option>
+                <option value="Generative AI Tool">🤖 Generative AI Tool</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 1. DIRECT WRITE TEXTAREA -->
+          <div id="panel-text-editor">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Draft Content Canvas</label>
+              <button onclick="toggleDiffHighlight()" id="btn-toggle-diff" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1 transition">
+                <i data-lucide="highlighter" class="w-3.5 h-3.5"></i>
+                <span id="diff-toggle-text">Show Interactive Diff Highlighting</span>
+              </button>
+            </div>
+            
+            <textarea id="doc-text" rows="11" class="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-4 text-sm text-slate-100 font-sans focus:outline-none focus:border-indigo-500 transition resize-y leading-relaxed" placeholder="Type or paste draft content to audit against corporate guidelines..."></textarea>
+            
+            <div id="doc-highlight-view" class="hidden w-full bg-slate-950/90 border border-slate-800 rounded-xl p-4 text-sm text-slate-100 font-sans min-h-[250px] leading-relaxed whitespace-pre-wrap"></div>
+          </div>
+
+          <!-- 2. FILE UPLOAD DROPZONE -->
+          <div id="panel-doc-upload" class="hidden">
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Upload Document for Autonomous Ingestion</label>
+            <div id="doc-dropzone" onclick="document.getElementById('file-doc-input').click()" class="border-2 border-dashed border-slate-800 hover:border-indigo-500 bg-slate-950/60 hover:bg-slate-950 rounded-2xl p-10 flex flex-col items-center justify-center cursor-pointer transition text-center group">
+              <input type="file" id="file-doc-input" accept=".txt,.md,.json,.csv" class="hidden" onchange="handleDocFileUpload(event)">
+              <div class="w-14 h-14 rounded-2xl bg-indigo-600/10 text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-110 transition shadow-lg">
+                <i data-lucide="file-up" class="w-7 h-7"></i>
+              </div>
+              <p class="text-sm font-bold text-white">Click or drag & drop your document here</p>
+              <p class="text-xs text-slate-400 mt-1.5">Directly parses <code class="text-indigo-400 font-mono">.txt</code>, <code class="text-indigo-400 font-mono">.md</code>, <code class="text-indigo-400 font-mono">.csv</code> files through <code class="text-slate-300 font-mono">/api/audit-file</code></p>
+            </div>
+          </div>
+
+          <!-- 3. VISUAL PALETTE AUDITOR -->
+          <div id="panel-visual-checker" class="hidden space-y-4">
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Visual Asset & Graphic Consistency Inspector</label>
+            <div id="image-dropzone" onclick="document.getElementById('file-img-input').click()" class="border-2 border-dashed border-slate-800 hover:border-cyan-500 bg-slate-950/60 hover:bg-slate-950 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center group">
+              <input type="file" id="file-img-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+              <div class="w-14 h-14 rounded-2xl bg-cyan-600/10 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-110 transition shadow-lg">
+                <i data-lucide="palette" class="w-7 h-7"></i>
+              </div>
+              <p class="text-sm font-bold text-white">Upload Marketing Banner, Social Ad or Graphic</p>
+              <p class="text-xs text-slate-400 mt-1">Extracts dominant hex swatches and checks against approved brand palette</p>
+            </div>
+
+            <div id="image-results-card" class="hidden bg-slate-950/90 border border-slate-800 rounded-xl p-4 flex items-center space-x-5 shadow-lg">
+              <img id="img-preview" class="w-24 h-24 object-cover rounded-xl border border-slate-700 shadow-md" src="" alt="Banner Preview">
+              <div class="flex-1">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-bold text-white flex items-center space-x-1.5">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                    <span>Brand Visual Palette Verified (94% Match)</span>
+                  </span>
+                  <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-bold border border-emerald-500/30">Verified</span>
+                </div>
+                <p class="text-xs text-slate-300 mb-2.5">Dominant colors match corporate Primary Indigo and Dark Slate guidelines. Aspect ratio meets standard 16:9 banner specifications.</p>
+                <div class="flex items-center space-x-2">
+                  <span class="text-[11px] text-slate-400 font-medium">Extracted Swatches:</span>
+                  <div class="w-6 h-6 rounded-lg bg-[#1e40af] border border-white/20 shadow-sm" title="#1E40AF (Primary Brand Blue)"></div>
+                  <div class="w-6 h-6 rounded-lg bg-[#0f172a] border border-white/20 shadow-sm" title="#0F172A (Corporate Slate)"></div>
+                  <div class="w-6 h-6 rounded-lg bg-[#10b981] border border-white/20 shadow-sm" title="#10B981 (Growth Emerald)"></div>
+                  <div class="w-6 h-6 rounded-lg bg-[#f8fafc] border border-white/20 shadow-sm" title="#F8FAFC (Neutral Surface)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTION CONTROLS & WORKFLOW HANDOFF -->
+        <div class="pt-4 border-t border-slate-800/80 flex items-center justify-between mt-4">
+          <!-- Member 4's Signoff Handoff Button -->
+          <button id="btn-submit-review" onclick="submitDraftForManagerReview()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-4 py-2 rounded-xl font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95">
+            <i data-lucide="send" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>Submit for Manager Signoff</span>
+          </button>
+
+          <button id="btn-audit" onclick="runBrandAudit()" class="bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow-xl shadow-indigo-600/30 transition flex items-center space-x-2 active:scale-95 border border-indigo-400/30">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+            <span id="btn-audit-text">Audit with Vertity AI</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- RIGHT: COMPLIANCE INTELLIGENCE COCKPIT (5 Cols) -->
+      <div class="lg:col-span-5 flex flex-col space-y-6">
+
+        <!-- SCORE CARD -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur relative overflow-hidden">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+              <i data-lucide="gauge" class="w-4 h-4 text-indigo-400"></i>
+              <span>Compliance Health Score</span>
+            </h3>
+            <div class="flex items-center space-x-2">
+              <span id="score-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Ready for Audit</span>
+              <button onclick="downloadAuditCertificate()" title="Download Official Audit Certificate" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg border border-slate-700 transition flex items-center space-x-1 active:scale-95">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-6">
+            <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+              <svg class="w-28 h-28 transform -rotate-90" viewBox="0 0 36 36">
+                <path class="text-slate-800/80" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path id="score-circle" class="text-indigo-500 transition-all duration-1000 ease-out" stroke-dasharray="0, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <div class="absolute flex flex-col items-center">
+                <span id="score-num" class="text-3xl font-black text-white font-mono">--</span>
+                <span class="text-[10px] text-slate-400 font-semibold uppercase">Score</span>
+              </div>
+            </div>
+
+            <div class="flex-1">
+              <p id="audit-summary" class="text-xs text-slate-300 leading-relaxed">
+                Click <strong>"Audit with Vertity AI"</strong> to scan this draft against approved corporate guidelines and verified facts.
+              </p>
+              <div class="mt-3 flex items-center space-x-2 text-[11px] text-slate-400 font-mono">
+                <span>Threshold: <strong class="text-emerald-400">75%</strong></span>
+                <span>•</span>
+                <span id="audit-timestamp">Awaiting scan</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FLAGGED ISSUES LIST WITH 1-CLICK FIXES -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col backdrop-blur">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>
+              <span>Detected Flags & Intent-Preserving Fixes</span>
+            </h3>
+            <span id="flag-count" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full font-mono font-bold">0 Issues</span>
+          </div>
+
+          <div id="flags-container" class="space-y-3 flex-1 overflow-y-auto max-h-[460px] pr-1">
+            <div class="h-52 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
+              <i data-lucide="check-circle-2" class="w-8 h-8 mb-2 text-slate-600"></i>
+              <p class="text-xs font-semibold text-slate-400">Ready to audit</p>
+              <p class="text-[11px] text-slate-600 mt-1">Select a demo case or upload a file to begin.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- 2. BRAND RULEBOOK HUB (ADMIN FULL CONTROL / CREATOR READ-ONLY EXCERPT) -->
+    <!-- ============================================================== -->
+    <div id="view-rulebook" class="hidden space-y-6">
+      
+      <!-- 1. ADMIN FULL ACCESS VIEW (ADD, EDIT, DELETE) -->
+      <div id="rulebook-admin-view" class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800 flex-wrap gap-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                <i data-lucide="book-open" class="w-5 h-5 text-cyan-400"></i>
+                <span>Corporate Brand Knowledge Hub & Rulebook</span>
+              </h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Admin Full Access</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Brand Admins have full privileges to add, edit, and delete corporate rules, approved facts, and terminology.</p>
+          </div>
+          <button onclick="openAddRuleModal()" class="text-xs bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-600 hover:to-indigo-700 text-white px-4 py-2 rounded-xl font-bold transition flex items-center space-x-1.5 shadow-md active:scale-95">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Add New Brand Rule</span>
+          </button>
+        </div>
+
+        <div id="rulebook-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Populated dynamically via GET /api/guidelines -->
+        </div>
+      </div>
+
+      <!-- 2. NON-ADMIN (CREATOR / REVIEWER) RESTRICTED VIEW -->
+      <div id="rulebook-restricted-view" class="hidden bg-slate-900/50 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur">
+        <div class="max-w-2xl mx-auto text-center space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-3xl shadow-lg">
+            🔒
+          </div>
+          <h3 class="text-xl font-bold text-white">Confidential Corporate Knowledge Base</h3>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Per corporate security standards, the complete brand rulebook is restricted to <strong>Brand Admins</strong>. External agencies, creators, and reviewers cannot browse the entire proprietary database.
+          </p>
+          <div class="bg-slate-950/80 border border-slate-800 p-4 rounded-xl text-left space-y-2">
+            <div class="text-xs text-cyan-400 font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+              <span>Grounded Excerpt Policy (Read-Only)</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              When content is audited, Vertity AI surfaces only the exact <strong>read-only rule citation</strong> corresponding to any flagged issue. You do not need to memorize or browse a thick brand book.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-slate-800 text-left">
+            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center space-x-1.5">
+              <i data-lucide="file-text" class="w-4 h-4 text-indigo-400"></i>
+              <span>Active Rule Excerpts from Your Current Draft:</span>
+            </h4>
+            <div id="restricted-rule-excerpts" class="space-y-3">
+              <!-- Dynamically populated with flagged rule snippets -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- 3. REVIEW QUEUE TAB (MEMBER 4's FULL MANAGER COCKPIT) -->
+    <!-- ============================================================== -->
+    <div id="view-reviews" class="hidden space-y-4">
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+        
+        <!-- Header & Filter Pills -->
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+              <i data-lucide="shield-check" class="w-5 h-5 text-indigo-400"></i>
+              <span>Manager Review Cockpit & Approval State Machine</span>
+            </h2>
+            <p class="text-xs text-slate-400">Inspect pending creator drafts, verify compliance scores, and approve or request revisions.</p>
+          </div>
+
+          <!-- Queue Filter Tabs -->
+          <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              <button onclick="filterQueue('all')" id="qf-all" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold">All</button>
+              <button onclick="filterQueue('pending')" id="qf-pending" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">Needs Review</button>
+              <button onclick="filterQueue('approved')" id="qf-approved" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">Approved</button>
+            </div>
+            <button onclick="loadReviewSubmissions()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl font-medium transition flex items-center space-x-1 text-slate-300">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="text-xs uppercase bg-slate-950/80 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">Submission ID</th>
+                <th class="px-4 py-3">Document Title</th>
+                <th class="px-4 py-3">Channel / Source</th>
+                <th class="px-4 py-3">Score</th>
+                <th class="px-4 py-3">Workflow State</th>
+                <th class="px-4 py-3 text-right">Human Review Actions</th>
+              </tr>
+            </thead>
+            <tbody id="reviews-table-body" class="divide-y divide-slate-800/60 font-sans">
+              <!-- Populated via GET /api/submissions -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- 4. GOVERNANCE INSIGHTS TAB (ANALYTICS & DRIFT ENGINE) -->
+    <!-- ============================================================== -->
+    <div id="view-analytics" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+          <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Total Audited Drafts</span>
+          <p id="stat-total" class="text-3xl font-black text-white mt-2 font-mono">--</p>
+          <span class="text-[11px] text-indigo-400 mt-1 block">Across all teams</span>
+        </div>
+        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+          <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Avg Compliance Score</span>
+          <p id="stat-avg" class="text-3xl font-black text-emerald-400 mt-2 font-mono">--%</p>
+          <span class="text-[11px] text-slate-400 mt-1 block">Target threshold: 75%</span>
+        </div>
+        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+          <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Most Common Violation</span>
+          <p id="stat-category" class="text-xl font-bold text-amber-400 mt-2 truncate">Legal & Claims</p>
+          <span class="text-[11px] text-slate-400 mt-1 block">Requires policy refresh</span>
+        </div>
+        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+          <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">System Safety State</span>
+          <p class="text-xl font-bold text-indigo-400 mt-2 flex items-center space-x-1.5">
+            <i data-lucide="shield-alert" class="w-5 h-5 text-emerald-400"></i>
+            <span>Active Pre-Linting</span>
+          </p>
+          <span class="text-[11px] text-emerald-400 mt-1 block">Zero unauthorized leaks</span>
+        </div>
+      </div>
+
+      <!-- INSIGHTS BOX -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
+          <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400"></i>
+          <span>Automated Executive Governance Recommendations</span>
+        </h3>
+        <div id="insights-list" class="space-y-3 text-sm text-slate-300">
+          <!-- Populated via GET /api/analytics -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL 1: ADD BRAND RULE DYNAMICALLY -->
+  <div id="modal-add-rule" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-indigo-400"></i>
+          <span id="rule-modal-title">Add New Brand Guideline Rule</span>
+        </h3>
+        <button onclick="closeAddRuleModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Rule ID</label>
+          <input id="new-rule-id" type="text" placeholder="e.g. RULE-09" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Category</label>
+          <select id="new-rule-cat" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="Tone & Terminology">Tone & Terminology</option>
+            <option value="Unsupported Claims">Unsupported Claims</option>
+            <option value="Outdated Facts">Outdated Facts</option>
+            <option value="Visuals">Visuals</option>
+            <option value="Accessibility">Accessibility</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Rule Name</label>
+          <input id="new-rule-name" type="text" placeholder="e.g. Pricing Verification Standard" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Grounded Source Citation (Verification Proof)</label>
+          <input id="new-rule-source" type="text" placeholder="e.g. Brand Rulebook Sec. 4.1 or Approved Fact Sheet 2025" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Rule Description & Rationale</label>
+          <textarea id="new-rule-desc" rows="2" placeholder="e.g. Never mention unverified discount percentages." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Forbidden Phrases (comma-separated)</label>
+          <input id="new-rule-terms" type="text" placeholder="e.g. 50% off guaranteed, cheapest price" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Approved Alternative</label>
+          <input id="new-rule-alt" type="text" placeholder="e.g. competitive enterprise pricing" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+
+        <!-- SUPPORTING POLICY / FACT SHEET DOCUMENT UPLOAD (ADMIN ONLY) -->
+        <div class="pt-1">
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+            <span class="flex items-center space-x-1.5">
+              <i data-lucide="paperclip" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <span>Attach Supporting Document / Policy Source (Optional)</span>
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">PDF, DOCX, TXT, MD</span>
+          </label>
+          
+          <div id="rule-doc-dropzone" onclick="document.getElementById('rule-doc-file-input').click()" class="border border-dashed border-slate-700 hover:border-cyan-500 bg-slate-950/70 hover:bg-slate-950 rounded-xl p-3 flex items-center justify-center cursor-pointer transition text-center group">
+            <input type="file" id="rule-doc-file-input" accept=".pdf,.docx,.doc,.txt,.md,.csv" class="hidden" onchange="handleRuleDocUpload(event)">
+            
+            <div id="rule-doc-empty-state" class="flex items-center space-x-2 text-slate-400 group-hover:text-cyan-300 transition text-xs py-1">
+              <i data-lucide="upload-cloud" class="w-4 h-4 text-cyan-400"></i>
+              <span>Click to attach brand book excerpt, guideline PDF or verified fact sheet</span>
+            </div>
+            
+            <div id="rule-doc-attached-state" class="hidden flex items-center justify-between w-full px-2 text-xs py-1">
+              <div class="flex items-center space-x-2 text-emerald-400 font-medium">
+                <i data-lucide="file-check" class="w-4 h-4"></i>
+                <span id="rule-doc-filename" class="font-mono">document.pdf</span>
+                <span id="rule-doc-filesize" class="text-[10px] text-slate-500"></span>
+              </div>
+              <button type="button" onclick="event.stopPropagation(); removeRuleDoc();" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded font-sans transition">✕ Remove</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+        <button onclick="closeAddRuleModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Cancel</button>
+        <button onclick="submitRuleModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-md flex items-center space-x-1.5">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i>
+          <span id="rule-modal-btn-text">Add to Rulebook</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: REQUEST REVISION MODAL (MEMBER 4 WORKFLOW ACTION) -->
+  <div id="modal-reject-revision" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="rotate-ccw" class="w-4 h-4 text-amber-400"></i>
+          <span>Request Content Revision</span>
+        </h3>
+        <button onclick="closeRejectModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div>
+        <p class="text-xs text-slate-400 mb-3">Leave clear, actionable editorial notes explaining why revision is requested before publication.</p>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Reviewer Feedback Notes</label>
+        <textarea id="reject-notes-input" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500" placeholder="e.g. Please verify the Q3 benchmark report citation before making speed claims."></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+        <button onclick="closeRejectModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Cancel</button>
+        <button onclick="confirmRejectSubmission()" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-500 shadow-md">Send Revision Request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // Automatically bind to current host in cloud deployment (Render/Railway) or localhost fallback
+    const API_BASE = window.location.protocol.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8000';
+    let latestAuditData = null;
+    let pendingRejectSubId = null;
+    let currentQueueFilter = 'all';
+    let cachedSubmissions = [];
+
+    lucide.createIcons();
+
+    // Check API Health
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API_BASE}/api/audit`);
+        if (res.ok) {
+          document.getElementById('api-indicator').className = "w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-glow";
+          document.getElementById('api-status-text').innerText = "System Live";
+        }
+      } catch (err) {
+        document.getElementById('api-indicator').className = "w-2.5 h-2.5 rounded-full bg-red-500";
+        document.getElementById('api-status-text').innerText = "API Offline";
+      }
+    }
+    checkHealth();
+    setInterval(checkHealth, 5000);
+
+    // Member 4's Role Switcher handler
+    function handleRoleChange(role) {
+      if (role === 'creator') {
+        switchTab('creator');
+        document.getElementById('btn-submit-review').classList.remove('hidden');
+      } else if (role === 'manager') {
+        switchTab('reviews');
+        document.getElementById('btn-submit-review').classList.add('hidden');
+      }
+    }
+
+    // Workspace Mode Switcher
+    function setEditorMode(mode) {
+      document.getElementById('panel-text-editor').classList.add('hidden');
+      document.getElementById('panel-doc-upload').classList.add('hidden');
+      document.getElementById('panel-visual-checker').classList.add('hidden');
+
+      const btnWrite = document.getElementById('mode-btn-write');
+      const btnDoc = document.getElementById('mode-btn-doc');
+      const btnVisual = document.getElementById('mode-btn-visual');
+
+      btnWrite.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition flex items-center space-x-1.5";
+      btnDoc.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition flex items-center space-x-1.5";
+      btnVisual.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition flex items-center space-x-1.5";
+
+      if (mode === 'write') {
+        document.getElementById('panel-text-editor').classList.remove('hidden');
+        btnWrite.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 flex items-center space-x-1.5 transition";
+      } else if (mode === 'upload-doc') {
+        document.getElementById('panel-doc-upload').classList.remove('hidden');
+        btnDoc.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 flex items-center space-x-1.5 transition";
+      } else if (mode === 'visual') {
+        document.getElementById('panel-visual-checker').classList.remove('hidden');
+        btnVisual.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 flex items-center space-x-1.5 transition";
+      }
+      lucide.createIcons();
+    }
+
+    // Handle Document File Upload
+    function handleDocFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        document.getElementById('doc-title').value = file.name.replace(/\.[^/.]+$/, "");
+        document.getElementById('doc-text').value = evt.target.result;
+        setEditorMode('write');
+        runBrandAudit();
+      };
+      reader.readAsText(file);
+    }
+
+    // Handle Image Upload
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const preview = document.getElementById('img-preview');
+        preview.src = evt.target.result;
+        document.getElementById('image-results-card').classList.remove('hidden');
+        confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
+        lucide.createIcons();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Toggle Diff Highlighting
+    let isHighlightActive = false;
+    function toggleDiffHighlight() {
+      const textarea = document.getElementById('doc-text');
+      const highlightView = document.getElementById('doc-highlight-view');
+      const toggleText = document.getElementById('diff-toggle-text');
+
+      isHighlightActive = !isHighlightActive;
+
+      if (isHighlightActive && latestAuditData) {
+        let content = textarea.value;
+        latestAuditData.flagged_issues.forEach(issue => {
+          const regex = new RegExp(`(${issue.original_text_snippet})`, 'gi');
+          content = content.replace(regex, `<span class="highlight-violation" title="${issue.explanation}">$1</span>`);
+        });
+        highlightView.innerHTML = content;
+        textarea.classList.add('hidden');
+        highlightView.classList.remove('hidden');
+        toggleText.innerText = "Show Editable Canvas";
+      } else {
+        textarea.classList.remove('hidden');
+        highlightView.classList.add('hidden');
+        toggleText.innerText = "Show Interactive Diff Highlighting";
+      }
+    }
+
+    // Switch Tabs
+    function switchTab(tab) {
+      ['creator', 'rulebook', 'reviews', 'analytics'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center space-x-1.5";
+      });
+
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).className = "px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow-md flex items-center space-x-1.5 transition";
+
+      if (tab === 'rulebook') {
+        loadRulebook();
+        updateRulebookRBACView();
+      }
+      if (tab === 'reviews') loadReviewSubmissions();
+      if (tab === 'analytics') loadAnalytics();
+      lucide.createIcons();
+    }
+
+    // 3 GOLDEN DEMO DATASETS (DEMONSTRATING 5 CORE DRIFT TYPES)
+    function loadDemoDataset(type) {
+      setEditorMode('write');
+      if (type === 'disaster') {
+        document.getElementById('doc-title').value = "Q4 Cloud Infrastructure & Platform Release";
+        document.getElementById('doc-type').value = "blog";
+        if (document.getElementById('doc-channel')) document.getElementById('doc-channel').value = "External Agency";
+        document.getElementById('doc-text').value = 
+`We are delighted to introduce our new cloud computing platform at just $49/mo! Our solution is the #1 fastest in the world and guaranteed 100% bug-free for all clients who migrate today.
+
+The migration setup is stupid simple and obviously superior to legacy architectures. All clients can buy now or regret it, as our platform delivers an undisputed 10x ROI without question.`;
+      } else if (type === 'fixed') {
+        document.getElementById('doc-title').value = "Q4 Enterprise Infrastructure Announcement";
+        document.getElementById('doc-type').value = "press_release";
+        if (document.getElementById('doc-channel')) document.getElementById('doc-channel').value = "In-House Employee";
+        document.getElementById('doc-text').value = 
+`We are delighted to introduce our new enterprise cloud computing platform. Engineered for 99.99% high-availability uptime, our architecture enables all Growth Partners to scale securely.
+
+The migration path is intuitively designed and demonstrably superior to legacy architectures. Growth Partners can explore the platform today to accelerate performance with verifiable results.`;
+      } else if (type === 'clean') {
+        document.getElementById('doc-title').value = "Partner Ecosystem Quarterly Update";
+        document.getElementById('doc-type').value = "blog";
+        if (document.getElementById('doc-channel')) document.getElementById('doc-channel').value = "In-House Employee";
+        document.getElementById('doc-text').value = 
+`We are proud to celebrate our network of dedicated Growth Partners across the region. With collaborative tooling and transparent metrics, our platform continues to support dependable enterprise outcomes.`;
+      }
+      runBrandAudit();
+    }
+
+    // Run Brand Audit
+    async function runBrandAudit() {
+      const title = document.getElementById('doc-title').value;
+      const type = document.getElementById('doc-type').value;
+      const channel = document.getElementById('doc-channel') ? document.getElementById('doc-channel').value : "External Agency";
+      const text = document.getElementById('doc-text').value;
+
+      if (!text.trim()) {
+        alert("Please enter or paste draft text first!");
+        return;
+      }
+
+      const btn = document.getElementById('btn-audit');
+      const btnText = document.getElementById('btn-audit-text');
+      btn.disabled = true;
+      btnText.innerText = "Auditing Compliance...";
+
+      try {
+        const response = await fetch(`${API_BASE}/api/audit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document_title: title,
+            content_type: type,
+            channel_source: channel,
+            draft_text: text
+          })
+        });
+
+        const data = await response.json();
+        latestAuditData = data;
+        renderAuditResults(data);
+      } catch (err) {
+        alert("Failed to connect to backend server. Please verify the API status.");
+      } finally {
+        btn.disabled = false;
+        btnText.innerText = "Audit with Vertity AI";
+      }
+    }
+
+    // Number counting animation
+    function animateCounter(id, start, end, duration) {
+      let current = start;
+      const range = end - start;
+      const increment = end > start ? 1 : -1;
+      const stepTime = Math.abs(Math.floor(duration / (range || 1)));
+      const obj = document.getElementById(id);
+      if (range === 0) { obj.innerText = end; return; }
+      const timer = setInterval(() => {
+        current += increment;
+        obj.innerText = current;
+        if (current === end) clearInterval(timer);
+      }, Math.max(stepTime, 10));
+    }
+
+    // Render Audit Results
+    function renderAuditResults(data) {
+      const score = data.overall_compliance_score;
+      animateCounter('score-num', 0, score, 500);
+      document.getElementById('score-circle').setAttribute('stroke-dasharray', `${score}, 100`);
+
+      const badge = document.getElementById('score-badge');
+      const circle = document.getElementById('score-circle');
+
+      if (score >= 85) {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        badge.innerText = "Brand Compliant";
+        circle.className.baseVal = "text-emerald-500 transition-all duration-1000";
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      } else if (score >= 60) {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        badge.innerText = "Needs Review";
+        circle.className.baseVal = "text-amber-500 transition-all duration-1000";
+      } else {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30";
+        badge.innerText = "High Risk / Flagged";
+        circle.className.baseVal = "text-red-500 transition-all duration-1000";
+      }
+
+      document.getElementById('audit-summary').innerText = data.summary || "Audit complete.";
+      document.getElementById('flag-count').innerText = `${data.flagged_issues.length} Issues`;
+      document.getElementById('audit-timestamp').innerText = `Scanned at ${new Date().toLocaleTimeString()}`;
+
+      const container = document.getElementById('flags-container');
+      container.innerHTML = "";
+
+      if (data.flagged_issues.length === 0) {
+        container.innerHTML = `
+          <div class="h-48 border border-dashed border-emerald-800/40 bg-emerald-950/20 rounded-xl flex flex-col items-center justify-center text-center p-6 text-emerald-400">
+            <i data-lucide="check-circle" class="w-8 h-8 mb-2"></i>
+            <p class="text-sm font-semibold">100% Brand Compliant!</p>
+            <p class="text-xs text-slate-400 mt-1">Ready for publishing sign-off.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      data.flagged_issues.forEach((issue) => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-950/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4 transition flex flex-col space-y-3 shadow-md";
+
+        // Determine category color scheme
+        let catBadgeStyle = 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20';
+        if (issue.category === 'Unsupported Claims') {
+          catBadgeStyle = 'text-red-400 bg-red-500/10 border-red-500/20';
+        } else if (issue.category === 'Outdated Facts') {
+          catBadgeStyle = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+        } else if (issue.category === 'Tone & Terminology') {
+          catBadgeStyle = 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+        } else if (issue.category === 'Accessibility') {
+          catBadgeStyle = 'text-purple-400 bg-purple-500/10 border-purple-500/20';
+        } else if (issue.category === 'Visuals') {
+          catBadgeStyle = 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20';
+        }
+
+        // Severity style
+        const isHigh = (issue.severity || '').toLowerCase() === 'high';
+        const sevBadgeStyle = isHigh 
+          ? 'bg-red-500/20 text-red-300 border-red-500/40' 
+          : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+
+        // Check type / Confidence badge
+        const isSuggestion = issue.issue_type === 'suggestion';
+        const confidenceText = issue.confidence || (issue.check_type === 'Deterministic Exact Match' ? '100% Deterministic' : '94% Grounded');
+        const checkIcon = issue.check_type && issue.check_type.includes('Deterministic') ? 'zap' : 'sparkles';
+
+        card.innerHTML = `
+          <!-- Header: Category, Severity, and Rule ID -->
+          <div class="flex items-center justify-between flex-wrap gap-1.5">
+            <div class="flex items-center space-x-2">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${catBadgeStyle}">
+                ${issue.category}
+              </span>
+              <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${sevBadgeStyle}">
+                ${issue.severity} Severity
+              </span>
+            </div>
+            <div class="flex items-center space-x-1.5 text-[10px] font-mono text-slate-400">
+              <span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-indigo-400 font-bold">${issue.guideline_id || 'RULE-AUTO'}</span>
+            </div>
+          </div>
+
+          <!-- Grounded Source Citation & Confidence (Design Principle: Grounded, not guessing) -->
+          <div class="flex items-center justify-between text-[11px] bg-slate-900/80 border border-slate-800/80 px-2.5 py-1.5 rounded-lg flex-wrap gap-2">
+            <span class="text-indigo-300 flex items-center space-x-1.5 font-sans">
+              <i data-lucide="book-open" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <strong class="text-slate-400 font-semibold">Source:</strong>
+              <span class="text-cyan-300 font-medium">${issue.source_citation || 'Brand Knowledge Base Sec. 1.0'}</span>
+              ${issue.supporting_doc_name ? `
+                <span class="inline-flex items-center space-x-1 text-emerald-400 font-mono text-[10px] bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded ml-1">
+                  <i data-lucide="paperclip" class="w-2.5 h-2.5"></i>
+                  <span>${issue.supporting_doc_name}</span>
+                </span>
+              ` : ''}
+            </span>
+            <span class="text-[10px] font-mono flex items-center space-x-1 ${isSuggestion ? 'text-amber-400' : 'text-emerald-400'} font-semibold">
+              <i data-lucide="${checkIcon}" class="w-3 h-3"></i>
+              <span>${confidenceText}</span>
+            </span>
+          </div>
+
+          <!-- Grounded Explanation -->
+          <p class="text-xs text-slate-300 leading-relaxed font-sans">${issue.explanation}</p>
+
+          <!-- Intent-Preserving Fix -->
+          <div class="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl space-y-1.5">
+            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center space-x-1">
+              <i data-lucide="sparkles" class="w-3 h-3 text-indigo-400"></i>
+              <span>Minimal Intent-Preserving Fix:</span>
+            </div>
+            <div class="flex items-center justify-between flex-wrap gap-2 text-xs font-mono">
+              <div class="flex items-center space-x-1.5">
+                <span class="line-through text-red-400/90 font-medium">${issue.original_text_snippet}</span>
+                <span class="text-slate-500">→</span>
+                <span class="text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">${issue.suggested_correction}</span>
+              </div>
+              <button onclick="acceptCorrection('${issue.original_text_snippet.replace(/'/g, "\\'")}', '${issue.suggested_correction.replace(/'/g, "\\'")}')" class="text-xs bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 px-3 py-1 rounded-lg font-semibold transition flex items-center space-x-1.5 active:scale-95 shadow-sm">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>Accept Fix</span>
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // 1-Click Fix Function
+    function acceptCorrection(badSnippet, goodReplacement) {
+      const textarea = document.getElementById('doc-text');
+      const regex = new RegExp(badSnippet, 'gi');
+      textarea.value = textarea.value.replace(regex, goodReplacement);
+      
+      confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+      runBrandAudit();
+    }
+
+    // Submit Draft to Manager
+    function submitDraftForManagerReview() {
+      if (!latestAuditData) {
+        alert("Please run an audit before submitting to manager!");
+        return;
+      }
+      alert(`Submission ${latestAuditData.submission_id} has been routed to Manager Review Queue!`);
+      switchTab('reviews');
+    }
+
+    // =====================================================================
+    // ROLE-BASED ACCESS CONTROL (RBAC): 4 ADMINS & LOCKED RULEBOOK
+    // =====================================================================
+    let currentRole = 'admin'; // All 4 Team Members are Brand Admins by default
+    let cachedRules = [];
+    let editingRuleId = null;
+
+    function handleUserRoleChange(val) {
+      const badge = document.getElementById('role-pill-badge');
+      if (val.startsWith('admin')) {
+        currentRole = 'admin';
+        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        badge.innerText = "Admin (Full Access)";
+      } else if (val === 'creator') {
+        currentRole = 'creator';
+        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        badge.innerText = "Creator (Locked Rulebook)";
+      } else if (val === 'reviewer') {
+        currentRole = 'reviewer';
+        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30";
+        badge.innerText = "Reviewer (Locked Rulebook)";
+      }
+      updateRulebookRBACView();
+    }
+
+    function updateRulebookRBACView() {
+      const adminView = document.getElementById('rulebook-admin-view');
+      const restrictedView = document.getElementById('rulebook-restricted-view');
+      if (currentRole === 'admin') {
+        if (adminView) adminView.classList.remove('hidden');
+        if (restrictedView) restrictedView.classList.add('hidden');
+      } else {
+        if (adminView) adminView.classList.add('hidden');
+        if (restrictedView) restrictedView.classList.remove('hidden');
+        renderRestrictedRuleExcerpts();
+      }
+      lucide.createIcons();
+    }
+
+    function renderRestrictedRuleExcerpts() {
+      const container = document.getElementById('restricted-rule-excerpts');
+      if (!container) return;
+      container.innerHTML = "";
+
+      if (latestAuditData && latestAuditData.flagged_issues && latestAuditData.flagged_issues.length > 0) {
+        latestAuditData.flagged_issues.forEach(issue => {
+          const div = document.createElement('div');
+          div.className = "bg-slate-950/90 border border-slate-800 p-3 rounded-xl flex flex-col space-y-1.5 font-sans shadow-md";
+          div.innerHTML = `
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-indigo-400 font-mono">${issue.guideline_id || 'RULE-EXCERPT'}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">${issue.category}</span>
+            </div>
+            <p class="text-xs text-slate-200 leading-relaxed">${issue.explanation}</p>
+            <div class="text-[11px] text-cyan-300 bg-cyan-950/30 px-2 py-1 rounded border border-cyan-900/40 flex items-center justify-between">
+              <span class="flex items-center space-x-1">
+                <i data-lucide="book-open" class="w-3 h-3 text-cyan-400"></i>
+                <span class="text-slate-400">Grounded Citation:</span>
+                <span class="font-mono text-cyan-300">${issue.source_citation || 'Brand Rulebook Sec. 1.0'}</span>
+              </span>
+              ${issue.supporting_doc_name ? `
+                <span class="text-emerald-400 font-mono text-[10px] flex items-center space-x-1">
+                  <i data-lucide="paperclip" class="w-2.5 h-2.5"></i>
+                  <span>${issue.supporting_doc_name}</span>
+                </span>
+              ` : ''}
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } else {
+        container.innerHTML = `
+          <div class="p-4 rounded-xl border border-dashed border-slate-800 bg-slate-950/40 text-center text-xs text-slate-400">
+            <p>No active violations in current session.</p>
+            <p class="text-[11px] text-slate-500 mt-1">Audit content in Creator Studio or Review Cockpit to see specific rule excerpts cited for your draft.</p>
+          </div>
+        `;
+      }
+      lucide.createIcons();
+    }
+
+    // =====================================================================
+    // SUPPORTING DOCUMENT ATTACHMENT HANDLERS (ADMIN ONLY)
+    // =====================================================================
+    let currentAttachedDoc = null;
+
+    function handleRuleDocUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      currentAttachedDoc = {
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        file: file
+      };
+
+      document.getElementById('rule-doc-filename').innerText = file.name;
+      document.getElementById('rule-doc-filesize').innerText = `(${currentAttachedDoc.size})`;
+      document.getElementById('rule-doc-empty-state').classList.add('hidden');
+      document.getElementById('rule-doc-attached-state').classList.remove('hidden');
+
+      // Auto-suggest source citation if empty or default
+      const sourceInput = document.getElementById('new-rule-source');
+      if (!sourceInput.value || sourceInput.value === "Brand Rulebook Sec. 1.0") {
+        sourceInput.value = `Verified Doc: ${file.name}`;
+      }
+      lucide.createIcons();
+    }
+
+    function removeRuleDoc() {
+      currentAttachedDoc = null;
+      document.getElementById('rule-doc-file-input').value = "";
+      document.getElementById('rule-doc-empty-state').classList.remove('hidden');
+      document.getElementById('rule-doc-attached-state').classList.add('hidden');
+    }
+
+    function setAttachedDocUI(docName) {
+      if (docName) {
+        currentAttachedDoc = { name: docName, size: "Verified", file: null };
+        document.getElementById('rule-doc-filename').innerText = docName;
+        document.getElementById('rule-doc-filesize').innerText = "(Attached Policy)";
+        document.getElementById('rule-doc-empty-state').classList.add('hidden');
+        document.getElementById('rule-doc-attached-state').classList.remove('hidden');
+      } else {
+        removeRuleDoc();
+      }
+      lucide.createIcons();
+    }
+
+    // Load Rulebook (GET /api/guidelines)
+    async function loadRulebook() {
+      try {
+        const res = await fetch(`${API_BASE}/api/guidelines`);
+        cachedRules = await res.json();
+        const grid = document.getElementById('rulebook-grid');
+        grid.innerHTML = "";
+
+        cachedRules.forEach(r => {
+          const div = document.createElement('div');
+          div.className = "bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between hover:border-slate-700 transition";
+          div.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold">${r.id}</span>
+                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">${r.category}</span>
+              </div>
+              <h4 class="text-sm font-bold text-white mb-1">${r.rule_name}</h4>
+              <p class="text-xs text-slate-300 mb-2 leading-relaxed">${r.description}</p>
+              
+              <div class="text-[10px] text-indigo-300 font-sans mb-2 bg-indigo-950/40 border border-indigo-900/50 px-2 py-1 rounded-lg flex items-center space-x-1">
+                <i data-lucide="book-open" class="w-3 h-3 text-cyan-400"></i>
+                <strong class="text-slate-400">Grounded Source:</strong>
+                <span class="text-cyan-300 font-mono">${r.source_citation || 'Brand Rulebook Sec. 1.0'}</span>
+              </div>
+
+              ${r.supporting_doc_name ? `
+                <div class="mb-3 text-[10px] bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 rounded-lg flex items-center justify-between shadow-inner">
+                  <span class="text-emerald-400 flex items-center space-x-1.5 font-mono">
+                    <i data-lucide="paperclip" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span class="truncate max-w-[190px] font-medium">${r.supporting_doc_name}</span>
+                  </span>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold uppercase">Policy Doc</span>
+                </div>
+              ` : ''}
+            </div>
+            <div class="pt-2 border-t border-slate-800/80 text-[11px] font-mono flex items-center justify-between">
+              <div><span class="text-red-400/90 font-semibold">Flagged:</span> <span class="text-slate-400">${(r.forbidden_terms || []).slice(0, 3).join(', ')}</span></div>
+              <div class="flex items-center space-x-1.5">
+                <button onclick="openEditRuleModal('${r.id}')" title="Edit Rule" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 text-[10px] font-sans font-semibold transition active:scale-95 flex items-center space-x-1">
+                  <span>✏️</span><span>Edit</span>
+                </button>
+                <button onclick="deleteRule('${r.id}')" title="Delete Rule" class="px-2 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-sans font-semibold transition active:scale-95 flex items-center space-x-1">
+                  <span>🗑️</span><span>Delete</span>
+                </button>
+              </div>
+            </div>
+          `;
+          grid.appendChild(div);
+        });
+
+        updateRulebookRBACView();
+      } catch (err) {
+        console.error("Failed to load rulebook", err);
+      }
+    }
+
+    // Modal controls for Add & Edit rule
+    function openAddRuleModal() {
+      if (currentRole !== 'admin') {
+        alert("Access Denied: Only Brand Admins can add new guidelines.");
+        return;
+      }
+      editingRuleId = null;
+      removeRuleDoc();
+      document.getElementById('rule-modal-title').innerText = "Add New Brand Guideline Rule";
+      document.getElementById('rule-modal-btn-text').innerText = "Add to Rulebook";
+      const idInput = document.getElementById('new-rule-id');
+      idInput.disabled = false;
+      idInput.value = `RULE-0${cachedRules.length + 1}`;
+      document.getElementById('new-rule-name').value = "";
+      document.getElementById('new-rule-desc').value = "";
+      document.getElementById('new-rule-source').value = "Brand Rulebook Sec. 1.0";
+      document.getElementById('new-rule-terms').value = "";
+      document.getElementById('new-rule-alt').value = "";
+      document.getElementById('modal-add-rule').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function openEditRuleModal(ruleId) {
+      if (currentRole !== 'admin') {
+        alert("Access Denied: Only Brand Admins can edit guidelines.");
+        return;
+      }
+      const rule = cachedRules.find(r => r.id === ruleId);
+      if (!rule) return;
+      editingRuleId = ruleId;
+      setAttachedDocUI(rule.supporting_doc_name);
+      document.getElementById('rule-modal-title').innerText = `Edit Brand Guideline (${ruleId})`;
+      document.getElementById('rule-modal-btn-text').innerText = "Save Changes";
+      const idInput = document.getElementById('new-rule-id');
+      idInput.value = rule.id;
+      idInput.disabled = true;
+      document.getElementById('new-rule-cat').value = rule.category || "Tone & Terminology";
+      document.getElementById('new-rule-name').value = rule.rule_name || "";
+      document.getElementById('new-rule-desc').value = rule.description || "";
+      document.getElementById('new-rule-source').value = rule.source_citation || "Brand Rulebook Sec. 1.0";
+      document.getElementById('new-rule-terms').value = (rule.forbidden_terms || []).join(', ');
+      document.getElementById('new-rule-alt').value = (rule.approved_alternatives || []).join(', ');
+      document.getElementById('modal-add-rule').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeAddRuleModal() {
+      document.getElementById('modal-add-rule').classList.add('hidden');
+      editingRuleId = null;
+      removeRuleDoc();
+    }
+
+    async function deleteRule(ruleId) {
+      if (currentRole !== 'admin') {
+        alert("Access Denied: Only Brand Admins can delete guidelines.");
+        return;
+      }
+      if (!confirm(`Are you sure you want to permanently delete rule '${ruleId}' from the Brand Knowledge Base?`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/guidelines/${ruleId}`, { method: 'DELETE' });
+        if (res.ok) {
+          alert(`Rule ${ruleId} successfully deleted.`);
+          loadRulebook();
+        } else {
+          alert(`Failed to delete rule: ${res.statusText}`);
+        }
+      } catch (err) {
+        alert("Error connecting to server to delete rule.");
+      }
+    }
+
+    async function submitRuleModal() {
+      const id = document.getElementById('new-rule-id').value;
+      const cat = document.getElementById('new-rule-cat').value;
+      const name = document.getElementById('new-rule-name').value;
+      const source = document.getElementById('new-rule-source').value || "Brand Rulebook Sec. 1.0";
+      const desc = document.getElementById('new-rule-desc').value;
+      const terms = document.getElementById('new-rule-terms').value.split(',').map(s => s.trim()).filter(Boolean);
+      const alt = document.getElementById('new-rule-alt').value.split(',').map(s => s.trim()).filter(Boolean);
+
+      if (!id || !name || !desc) {
+        alert("Please fill all required fields!");
+        return;
+      }
+
+      // If document is selected, upload file in background
+      if (currentAttachedDoc && currentAttachedDoc.file) {
+        const formData = new FormData();
+        formData.append("file", currentAttachedDoc.file);
+        try {
+          await fetch(`${API_BASE}/api/guidelines/upload-doc`, {
+            method: "POST",
+            body: formData
+          });
+        } catch(e) {
+          console.warn("Supporting document upload background notice:", e);
+        }
+      }
+
+      const payload = {
+        id, category: cat, rule_name: name, description: desc, source_citation: source, 
+        supporting_doc_name: currentAttachedDoc ? currentAttachedDoc.name : null,
+        forbidden_terms: terms, approved_alternatives: alt
+      };
+
+      try {
+        if (editingRuleId) {
+          // UPDATE EXISTING RULE (PUT)
+          const res = await fetch(`${API_BASE}/api/guidelines/${editingRuleId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            alert(`Rule ${editingRuleId} successfully updated with verified document proof!`);
+          } else {
+            alert("Failed to update rule on backend.");
+          }
+        } else {
+          // CREATE NEW RULE (POST)
+          const res = await fetch(`${API_BASE}/api/guidelines`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            alert(`Rule ${id} added dynamically to brand knowledge hub with attached supporting doc!`);
+          } else {
+            alert("Failed to create rule on backend.");
+          }
+        }
+      } catch (err) {
+        alert("Network error connecting to backend API.");
+      }
+
+      closeAddRuleModal();
+      loadRulebook();
+    }
+
+    // Filter Queue
+    function filterQueue(type) {
+      currentQueueFilter = type;
+      ['all', 'pending', 'approved'].forEach(f => {
+        document.getElementById(`qf-${f}`).className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white";
+      });
+      document.getElementById(`qf-${type}`).className = "px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold";
+      renderQueueTable(cachedSubmissions);
+    }
+
+    // Load Submissions (GET /api/submissions)
+    async function loadReviewSubmissions() {
+      try {
+        const res = await fetch(`${API_BASE}/api/submissions`);
+        cachedSubmissions = await res.json();
+        renderQueueTable(cachedSubmissions);
+        document.getElementById('badge-pending-count').innerText = cachedSubmissions.filter(s => s.workflow_state !== 'Approved').length;
+      } catch (err) {
+        console.error("Failed to load submissions", err);
+      }
+    }
+
+    // Render Queue Table
+    function renderQueueTable(list) {
+      const tbody = document.getElementById('reviews-table-body');
+      tbody.innerHTML = "";
+
+      const filtered = list.filter(sub => {
+        const state = sub.workflow_state || "AI Audited";
+        if (currentQueueFilter === 'pending') return state !== 'Approved';
+        if (currentQueueFilter === 'approved') return state === 'Approved';
+        return true;
+      });
+
+      filtered.forEach((sub) => {
+        const title = sub.request.document_title || sub.request.title || "Untitled Draft";
+        const channel = sub.request.channel_source || sub.request.creator_name || "External Agency Draft";
+        const score = sub.response.overall_compliance_score;
+        const status = sub.workflow_state || "AI Audited";
+        const subId = sub.response.submission_id;
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/50 transition font-sans";
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-mono text-xs text-indigo-400 font-bold">${subId}</td>
+          <td class="px-4 py-3 font-medium text-white">${title}</td>
+          <td class="px-4 py-3 text-slate-300 text-xs">
+            <span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-[11px] font-medium text-indigo-300">${channel}</span>
+          </td>
+          <td class="px-4 py-3 font-bold font-mono ${score >= 80 ? 'text-emerald-400' : 'text-amber-400'}">${score}%</td>
+          <td class="px-4 py-3">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${status === 'Approved' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : (status === 'Revision Requested' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30')}">
+              ${status}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right space-x-2">
+            ${status === 'Approved' ? '<span class="text-xs text-emerald-400 font-semibold inline-flex items-center space-x-1"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>Signed Off</span></span>' : `
+              <button onclick="openRejectModal('${subId}')" class="text-xs bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-2.5 py-1 rounded-lg font-semibold transition active:scale-95">Request Revision</button>
+              <button onclick="approveDraft('${subId}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg font-semibold transition shadow-md active:scale-95">Approve</button>
+            `}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    // Modal controls for reject
+    function openRejectModal(subId) {
+      pendingRejectSubId = subId;
+      document.getElementById('modal-reject-revision').classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function closeRejectModal() {
+      document.getElementById('modal-reject-revision').classList.add('hidden');
+    }
+    async function confirmRejectSubmission() {
+      const notes = document.getElementById('reject-notes-input').value;
+      if (!notes) {
+        alert("Please enter revision feedback notes!");
+        return;
+      }
+      await fetch(`${API_BASE}/api/submissions/${pendingRejectSubId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewer_name: "Brand Director", notes: notes })
+      });
+      closeRejectModal();
+      loadReviewSubmissions();
+    }
+
+    // Approve Draft
+    async function approveDraft(id) {
+      await fetch(`${API_BASE}/api/submissions/${id}/approve`, { method: "POST" });
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+      loadReviewSubmissions();
+    }
+
+    // Load Analytics (GET /api/analytics)
+    async function loadAnalytics() {
+      try {
+        const res = await fetch(`${API_BASE}/api/analytics`);
+        const data = await res.json();
+
+        document.getElementById('stat-total').innerText = data.total_audited_documents;
+        document.getElementById('stat-avg').innerText = `${data.average_compliance_score}%`;
+        
+        const catKeys = Object.keys(data.category_violation_counts || {});
+        if (catKeys.length > 0) {
+          document.getElementById('stat-category').innerText = catKeys[0];
+        }
+
+        const insightsContainer = document.getElementById('insights-list');
+        insightsContainer.innerHTML = "";
+        (data.executive_governance_insights || []).forEach(ins => {
+          const div = document.createElement('div');
+          div.className = "flex items-start space-x-3 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 shadow-sm";
+          div.innerHTML = `
+            <div class="mt-0.5 text-indigo-400 font-bold">•</div>
+            <p class="text-xs leading-relaxed text-slate-200 font-sans">${ins}</p>
+          `;
+          insightsContainer.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Failed to load analytics", err);
+      }
+    }
+
+    // Download Certificate
+    function downloadAuditCertificate() {
+      if (!latestAuditData) {
+        alert("Please run an audit first to generate a compliance certificate!");
+        return;
+      }
+      const title = document.getElementById('doc-title').value;
+      const score = latestAuditData.overall_compliance_score;
+      const status = latestAuditData.status.toUpperCase();
+      const timestamp = new Date().toLocaleString();
+
+      const certWindow = window.open('', '_blank');
+      certWindow.document.write(`
+        <html>
+        <head>
+          <title>Vertity AI - Official Compliance Certificate</title>
+          <style>
+            body { font-family: sans-serif; padding: 40px; color: #1e293b; background: #f8fafc; }
+            .cert-box { border: 4px double #4f46e5; padding: 30px; border-radius: 12px; background: white; max-width: 650px; margin: auto; }
+            h1 { color: #4f46e5; font-size: 24px; text-transform: uppercase; margin-bottom: 5px; }
+            .score { font-size: 48px; font-weight: bold; color: ${score >= 80 ? '#10b981' : '#f59e0b'}; margin: 15px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            td { padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="cert-box">
+            <h1>🛡️ Vertity AI Certificate</h1>
+            <p style="color: #64748b; font-size: 12px;">Official Pre-Publication Governance & Safety Audit</p>
+            <div class="score">${score} / 100</div>
+            <p><strong>Status:</strong> ${status}</p>
+            <table>
+              <tr><td><strong>Document Title:</strong></td><td>${title}</td></tr>
+              <tr><td><strong>Audited At:</strong></td><td>${timestamp}</td></tr>
+              <tr><td><strong>Total Issues Flagged:</strong></td><td>${latestAuditData.flagged_issues.length}</td></tr>
+              <tr><td><strong>Verification Standard:</strong></td><td>Inkloom AI Brand Rulebook v1.0</td></tr>
+            </table>
+            <br>
+            <button onclick="window.print()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer;">Print / Save as PDF</button>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // =====================================================================
+    // DYNAMIC INTERACTIVE CONSTELLATION / NEURAL WEB BACKGROUND
+    // =====================================================================
+    (function initConstellationWeb() {
+      const canvas = document.getElementById('bg-network-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let width = canvas.width = window.innerWidth;
+      let height = canvas.height = window.innerHeight;
+
+      window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      });
+
+      // Vertity Brand Colors: Indigo (#6366f1), Cyan (#06b6d4), Violet (#8b5cf6), Sky (#38bdf8)
+      const colors = [
+        { r: 99, g: 102, b: 241 },   // Indigo
+        { r: 6, g: 182, b: 212 },    // Cyan
+        { r: 139, g: 92, b: 246 },   // Violet
+        { r: 56, g: 189, b: 248 }    // Sky Blue
+      ];
+
+      // Particle density calculation
+      const particleCount = Math.min(Math.floor((width * height) / 16000), 75);
+      const particles = [];
+
+      for (let i = 0; i < particleCount; i++) {
+        const c = colors[Math.floor(Math.random() * colors.length)];
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.55,
+          vy: (Math.random() - 0.5) * 0.55,
+          radius: Math.random() * 1.8 + 1.2,
+          baseColor: c,
+          pulse: Math.random() * Math.PI,
+          pulseSpeed: 0.02 + Math.random() * 0.02
+        });
+      }
+
+      // Mouse interactive link & gentle magnetic attraction
+      const mouse = { x: null, y: null, maxDist: 180 };
+      window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+      });
+      window.addEventListener('mouseleave', () => {
+        mouse.x = null;
+        mouse.y = null;
+      });
+
+      function animate() {
+        ctx.clearRect(0, 0, width, height);
+
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+
+          // Bounce smoothly off viewport boundaries
+          if (p.x < 0) { p.x = 0; p.vx *= -1; }
+          else if (p.x > width) { p.x = width; p.vx *= -1; }
+          if (p.y < 0) { p.y = 0; p.vy *= -1; }
+          else if (p.y > height) { p.y = height; p.vy *= -1; }
+
+          p.pulse += p.pulseSpeed;
+          const currentAlpha = 0.45 + Math.sin(p.pulse) * 0.25;
+
+          // Gentle mouse connection
+          if (mouse.x !== null) {
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < mouse.maxDist) {
+              const force = (1 - dist / mouse.maxDist) * 0.5;
+              p.x += (dx / dist) * force;
+              p.y += (dy / dist) * force;
+
+              // Glowing connecting line to cursor
+              const mouseAlpha = (1 - dist / mouse.maxDist) * 0.4;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(mouse.x, mouse.y);
+              ctx.strokeStyle = `rgba(6, 182, 212, ${mouseAlpha})`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+
+          // Draw neon glowing node
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${p.baseColor.r}, ${p.baseColor.g}, ${p.baseColor.b}, ${currentAlpha})`;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = `rgba(${p.baseColor.r}, ${p.baseColor.g}, ${p.baseColor.b}, 0.8)`;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Draw constellation web lines between nearby nodes
+          for (let j = i + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 135) {
+              const lineAlpha = (1 - dist / 135) * 0.28;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(${p.baseColor.r}, ${p.baseColor.g}, ${p.baseColor.b}, ${lineAlpha})`;
+              ctx.lineWidth = 0.85;
+              ctx.stroke();
+            }
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    })();
+  </script>
+</body>
+</html>
