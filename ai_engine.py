@@ -1,6 +1,7 @@
 """
 Vertity AI - Core AI/ML Engine
 Inkloom AI Hackathon
+AI & ML Lead: Hybrid Deterministic Regex + Gemini Flash 2.5 Semantic Auditor
 
 This module implements Vertity AI's Core Design Principles:
 1. Grounded, Not Guessing: Findings trace back to uploaded sources; ungrounded findings are low-confidence suggestions.
