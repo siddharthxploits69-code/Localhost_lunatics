@@ -1,0 +1,274 @@
+/* Vertity AI — In-App Brand Governance Copilot Styles (Scoped) */
+
+#vertity-ext-root {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 2147483640;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  color: #f8fafc;
+  line-height: 1.4;
+}
+
+.vertity-ext-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  border-radius: 9999px;
+  padding: 8px 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 0 18px rgba(99, 102, 241, 0.25);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.vertity-ext-pill:hover {
+  transform: translateY(-2px);
+  border-color: #06b6d4;
+}
+
+.vertity-ext-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.vertity-ext-dot.warn {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.vertity-ext-dot.danger {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.vertity-ext-pill-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.vertity-ext-pill-score {
+  font-size: 11px;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+}
+
+.vertity-ext-drawer {
+  position: fixed;
+  bottom: 72px;
+  right: 22px;
+  width: 370px;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  z-index: 2147483641;
+}
+
+.vertity-ext-drawer.hidden {
+  display: none !important;
+}
+
+.vertity-ext-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.12));
+  border-bottom: 1px solid #1e293b;
+}
+
+.vertity-ext-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vertity-ext-logo-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.vertity-ext-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.vertity-ext-close:hover {
+  background: #1e293b;
+  color: #ffffff;
+}
+
+.vertity-ext-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #020617;
+  border-bottom: 1px solid #1e293b;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.vertity-ext-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  max-height: 330px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vertity-ext-card {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vertity-ext-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.vertity-ext-cat {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.vertity-ext-sev-high {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.18);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.vertity-ext-sev-med {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.18);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.vertity-ext-cite {
+  font-size: 10px;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 6px;
+  padding: 4px 7px;
+}
+
+.vertity-ext-exp {
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.vertity-ext-fix-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.vertity-ext-bad {
+  color: #f87171;
+  text-decoration: line-through;
+}
+
+.vertity-ext-good {
+  color: #34d399;
+  font-weight: 700;
+}
+
+.vertity-ext-btn-fix {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vertity-ext-btn-fix:hover {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+.vertity-ext-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #020617;
+  border-top: 1px solid #1e293b;
+}
+
+.vertity-ext-btn-primary {
+  flex: 1;
+  background: linear-gradient(90deg, #6366f1, #4f46e5);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vertity-ext-btn-secondary {
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}

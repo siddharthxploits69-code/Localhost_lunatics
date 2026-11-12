@@ -111,6 +111,41 @@ def run_tests():
     except Exception as e:
         print(f"  --> Result: {e}")
 
+    # 6. Test Live Browser Extension Inline Linting & ZIP Bundle Download
+    print("\n[TEST 6] Testing Browser Extension Inline API (/api/audit-inline & /api/extension/download)...")
+    try:
+        _, subs_before = test_endpoint("SubsBefore", "GET", "/api/submissions")
+        before_count = len(subs_before) if isinstance(subs_before, list) else -1
+
+        inline_payload = {
+            "text": "Our platform is guaranteed 100% bug-free for clients at $49/mo.",
+            "platform": "LinkedIn",
+            "include_ai": False
+        }
+        st_in, res_in = test_endpoint("Inline", "POST", "/api/audit-inline", inline_payload)
+        spans = res_in.get("flagged_issues", []) if isinstance(res_in, dict) else []
+        snippets = [s.get("original_text_snippet") for s in spans]
+
+        _, subs_after = test_endpoint("SubsAfter", "GET", "/api/submissions")
+        after_count = len(subs_after) if isinstance(subs_after, list) else -2
+
+        assert st_in == 200, f"Inline status {st_in}"
+        assert res_in.get("persisted") is False, "Expected non-persisted inline response"
+        assert before_count == after_count, f"SUBMISSIONS_DB mutated during inline lint ({before_count} -> {after_count})"
+        assert snippets == ["guaranteed 100% bug-free", "clients", "$49/mo"], f"Unexpected dedup spans: {snippets}"
+
+        import io, zipfile
+        with urllib.request.urlopen(f"{BASE_URL}/api/extension/download", timeout=5) as zresp:
+            assert zresp.status == 200
+            zbytes = zresp.read()
+        with zipfile.ZipFile(io.BytesIO(zbytes), "r") as zf:
+            names = set(zf.namelist())
+        required_files = {"manifest.json", "content.js", "content.css", "popup.html", "popup.js", "icons/icon128.png"}
+        assert required_files.issubset(names), f"Missing files in extension ZIP: {required_files - names}"
+        print(f"  --> PASSED: Inline Spans={snippets} | Non-persisted Queue={after_count} | Extension ZIP={len(zbytes)} bytes")
+    except Exception as e:
+        print(f"  --> Result: {e}")
+
     print("\n" + "=" * 65)
     print("SUCCESS: Grounding & Governance Integrity Verified (100% Passed).")
     print("=" * 65)

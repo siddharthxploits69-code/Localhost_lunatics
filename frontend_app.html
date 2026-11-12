@@ -78,7 +78,7 @@
             <span>Vertity</span>
             <span class="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI</span>
           </h1>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.4 Enterprise</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v3.0 Enterprise</span>
         </div>
         <p class="text-[11px] text-slate-400">Autonomous Pre-Publication Brand Governance & Human-in-the-Loop Cockpit</p>
       </div>
@@ -120,7 +120,12 @@
         </button>
       </div>
 
-      <!-- STATUS INDICATOR -->
+      <!-- CHROME EXTENSION LAUNCHER & STATUS INDICATOR -->
+      <button onclick="openExtensionModal()" class="flex items-center space-x-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm" title="Download Vertity AI Chrome Extension or launch CMS Copilot Simulator">
+        <i data-lucide="puzzle" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Extension v3.0</span>
+      </button>
+
       <div class="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-mono">
         <span id="api-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-glow"></span>
         <span id="api-status-text" class="text-slate-300 font-sans text-[11px]">System Live</span>
@@ -701,6 +706,82 @@
       <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
         <button onclick="closeRejectModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Cancel</button>
         <button onclick="confirmRejectSubmission()" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-500 shadow-md">Send Revision Request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: BROWSER EXTENSION DOWNLOAD & LIVE IN-APP COPILOT SIMULATOR (ROUND 3 IMPROVEMENT 2) -->
+  <div id="modal-extension-copilot" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg">
+            <i data-lucide="puzzle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Vertity AI Chrome/Edge Extension v3.0 — Live In-App Brand Copilot</h3>
+            <p class="text-[11px] text-slate-400">Real-time inline linting across Google Docs, LinkedIn, WordPress, Gmail &amp; CMS editors</p>
+          </div>
+        </div>
+        <button onclick="closeExtensionModal()" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
+      </div>
+
+      <!-- INSTALL & PACKAGE SECTION -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-slate-950/80 border border-slate-800 rounded-xl p-4">
+        <div class="md:col-span-8 space-y-1.5">
+          <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+            <span class="text-xs font-bold text-cyan-300">Manifest V3 Package Ready</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">Google Docs</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">LinkedIn</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">WordPress CMS</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">Gmail / Notion</span>
+          </div>
+          <p class="text-[11px] text-slate-400">
+            <strong>Install in 30 sec:</strong> 1) Download &amp; unzip bundle → 2) Open <code class="text-cyan-300">chrome://extensions</code> &amp; enable <strong>Developer mode</strong> → 3) Click <strong>Load unpacked</strong> and select the unzipped folder.
+          </p>
+        </div>
+        <div class="md:col-span-4 flex justify-end">
+          <a href="/api/extension/download" download="Vertity-AI-Chrome-Extension.zip" class="w-full md:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white text-xs font-bold shadow-lg flex items-center justify-center space-x-2 transition">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download Extension (.zip)</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- LIVE INLINE CMS SIMULATOR -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-bold text-white">Live In-App Copilot Simulator (<code class="text-cyan-400 font-mono">/api/audit-inline</code>)</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <label class="text-[11px] text-slate-400">Target App:</label>
+            <select id="sim-platform-select" onchange="runExtSimulatorAudit()" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-cyan-300 font-semibold">
+              <option value="LinkedIn">LinkedIn Post Composer</option>
+              <option value="WordPress CMS">WordPress Block Editor</option>
+              <option value="Google Docs">Google Docs Draft</option>
+            </select>
+            <span id="sim-score-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">--/100</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="lg:col-span-7 flex flex-col space-y-2">
+            <textarea id="sim-editor-input" rows="7" oninput="scheduleExtSimulatorAudit()" class="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-xl p-3.5 text-xs text-slate-100 leading-relaxed focus:outline-none" placeholder="Type inside this simulated CMS composer to test real-time inline governance...">Excited to announce our #1 fastest in the world cloud rollout for all clients! Our platform is guaranteed 100% bug-free starting at just $49/mo. Buy now or regret it!</textarea>
+            <div class="flex items-center justify-between text-[11px] text-slate-400">
+              <span id="sim-telemetry-line">Non-persisting real-time lint active (does not spam Review Queue while typing)</span>
+              <button onclick="routeSimDraftToQueue()" id="btn-sim-queue" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center space-x-1.5">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                <span>Route to Manager Queue</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 bg-slate-950/90 border border-slate-800 rounded-xl p-3 flex flex-col space-y-2 max-h-60 overflow-y-auto" id="sim-issues-panel">
+            <p class="text-xs text-slate-400">Initializing inline copilot...</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1777,6 +1858,135 @@ The migration path is intuitively designed and demonstrably superior to legacy a
         </body>
         </html>
       `);
+    }
+
+    // =====================================================================
+    // ROUND 3 IMPROVEMENT 2: CHROME EXTENSION MODAL & LIVE CMS SIMULATOR
+    // =====================================================================
+    let simDebounceTimer = null;
+
+    function openExtensionModal() {
+      const modal = document.getElementById('modal-extension-copilot');
+      if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+        runExtSimulatorAudit();
+      }
+    }
+
+    function closeExtensionModal() {
+      const modal = document.getElementById('modal-extension-copilot');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function scheduleExtSimulatorAudit() {
+      clearTimeout(simDebounceTimer);
+      simDebounceTimer = setTimeout(runExtSimulatorAudit, 350);
+    }
+
+    function escapeSimHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function runExtSimulatorAudit() {
+      const textEl = document.getElementById('sim-editor-input');
+      const platEl = document.getElementById('sim-platform-select');
+      const scoreBadge = document.getElementById('sim-score-badge');
+      const panel = document.getElementById('sim-issues-panel');
+      if (!textEl || !panel) return;
+
+      const text = textEl.value || '';
+      const platform = platEl ? platEl.value : 'LinkedIn';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/audit-inline`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, platform, include_ai: false })
+        });
+        const data = await res.json();
+        const score = data.overall_compliance_score ?? 100;
+        const issues = data.flagged_issues || [];
+
+        if (scoreBadge) {
+          scoreBadge.textContent = `${score}/100`;
+          scoreBadge.className = score >= 85
+            ? 'px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+            : (score >= 60
+              ? 'px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              : 'px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/30');
+        }
+
+        if (issues.length === 0) {
+          panel.innerHTML = `<div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 font-semibold">✓ Clean draft in ${escapeSimHtml(platform)}: zero Brand Rulebook drift detected.</div>`;
+          return;
+        }
+
+        panel.innerHTML = issues.map((iss) => `
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 space-y-1.5">
+            <div class="flex items-center justify-between text-[10px] font-bold uppercase">
+              <span class="text-cyan-400">${escapeSimHtml(iss.category)}</span>
+              <span class="${iss.severity === 'high' ? 'text-red-400' : 'text-amber-400'}">${escapeSimHtml(iss.severity)}</span>
+            </div>
+            <div class="text-[10px] text-indigo-300 font-mono">Proof: ${escapeSimHtml(iss.source_citation)}</div>
+            <div class="flex items-center justify-between gap-2 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] font-mono">
+              <div class="truncate">
+                <span class="text-red-400 line-through">${escapeSimHtml(iss.original_text_snippet)}</span>
+                <span class="text-slate-500 mx-1">→</span>
+                <span class="text-emerald-400 font-bold">${escapeSimHtml(iss.suggested_correction)}</span>
+              </div>
+              <button onclick="applySimulatorFix(${iss.start_index}, ${iss.end_index}, ${JSON.stringify(iss.suggested_correction).replace(/"/g, '&quot;')})" class="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-sans font-bold text-[10px] whitespace-nowrap">1-Click Fix</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        panel.innerHTML = `<div class="text-xs text-red-400">Inline audit error: ${escapeSimHtml(err.message)}</div>`;
+      }
+    }
+
+    function applySimulatorFix(startIdx, endIdx, replacement) {
+      const textEl = document.getElementById('sim-editor-input');
+      if (!textEl) return;
+      const val = textEl.value || '';
+      textEl.value = val.slice(0, startIdx) + replacement + val.slice(endIdx);
+      runExtSimulatorAudit();
+    }
+
+    async function routeSimDraftToQueue() {
+      const textEl = document.getElementById('sim-editor-input');
+      const platEl = document.getElementById('sim-platform-select');
+      const btn = document.getElementById('btn-sim-queue');
+      if (!textEl || !btn) return;
+      const text = (textEl.value || '').trim();
+      const platform = platEl ? platEl.value : 'LinkedIn';
+      if (!text) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Routing...</span>';
+      try {
+        const res = await fetch(`${API_BASE}/api/audit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `${platform} Live Copilot Draft`,
+            content_type: platform === 'LinkedIn' ? 'social_media' : 'blog',
+            channel_source: `${platform} Browser Extension`,
+            creator_name: 'Extension Copilot User',
+            content_text: text
+          })
+        });
+        const data = await res.json();
+        btn.innerHTML = `<span>Queued (${data.submission_id})</span>`;
+        if (typeof loadSubmissions === 'function') loadSubmissions();
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i><span>Route to Manager Queue</span>';
+          lucide.createIcons();
+        }, 2500);
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Route Failed</span>';
+      }
     }
 
     // =====================================================================

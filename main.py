@@ -6,12 +6,14 @@ FastAPI backend for pre-publication brand governance, hybrid compliance auditing
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime
 from collections import Counter
+import io
+import zipfile
 import os
 import re
 import json
@@ -102,6 +104,35 @@ class AuditResponse(BaseModel):
     summary: str
     flagged_issues: List[FlaggedIssue]
     analyzed_at: str
+
+class InlineAuditRequest(BaseModel):
+    text: str
+    page_url: Optional[str] = ""
+    page_title: Optional[str] = ""
+    platform: Optional[str] = "Web Editor"
+    include_ai: Optional[bool] = False
+
+class InlineFlaggedSpan(BaseModel):
+    id: str
+    guideline_id: Optional[str] = None
+    category: str
+    severity: str
+    original_text_snippet: str
+    start_index: int
+    end_index: int
+    explanation: str
+    suggested_correction: str
+    source_citation: str
+    check_type: str
+
+class InlineAuditResponse(BaseModel):
+    overall_compliance_score: int
+    status: str
+    summary: str
+    platform: str
+    flagged_issues: List[InlineFlaggedSpan]
+    analyzed_at: str
+    persisted: bool = False
 
 # ---------------------------------------------------------
 # IN-MEMORY KNOWLEDGE BASE (Guidelines & Approved Facts)
@@ -303,6 +334,58 @@ def evaluate_content_rules(text: str) -> List[FlaggedIssue]:
                 ))
     
     return flags
+
+def _evaluate_inline_spans(text: str) -> List[InlineFlaggedSpan]:
+    """
+    Longest-match non-overlapping deterministic span detector for the Chrome Extension
+    and CMS live inline copilot. Prevents duplicate overlaps like 'clients' vs 'client'
+    or 'guaranteed 100% bug-free' vs '100% bug-free'.
+    """
+    if not text:
+        return []
+
+    term_entries = []
+    for rule in BRAND_GUIDELINES:
+        for forbidden in rule.get("forbidden_terms", []):
+            term = forbidden.strip()
+            if term:
+                term_entries.append((term, rule))
+
+    # Longest phrases first so specific multi-word violations win over shorter substrings
+    term_entries.sort(key=lambda item: len(item[0]), reverse=True)
+
+    occupied_ranges = []
+    raw_spans: List[InlineFlaggedSpan] = []
+
+    for term, rule in term_entries:
+        prefix = r"(?<!\w)" if term[0].isalnum() else ""
+        suffix = r"(?!\w)" if term[-1].isalnum() else ""
+        pattern = re.compile(f"{prefix}{re.escape(term)}{suffix}", re.IGNORECASE)
+
+        for match in pattern.finditer(text):
+            s, e = match.start(), match.end()
+            if any(not (e <= os_ or s >= oe) for os_, oe in occupied_ranges):
+                continue
+            occupied_ranges.append((s, e))
+            severity = "high" if rule["category"] in ["Unsupported Claims", "Outdated Facts"] else "medium"
+            raw_spans.append(InlineFlaggedSpan(
+                id="INLINE-PENDING",
+                guideline_id=rule["id"],
+                category=rule["category"],
+                severity=severity,
+                original_text_snippet=text[s:e],
+                start_index=s,
+                end_index=e,
+                explanation=f"Violates {rule['rule_name']}: {rule['description']}",
+                suggested_correction=rule["approved_alternatives"][0] if rule.get("approved_alternatives") else "Revise or remove",
+                source_citation=rule.get("source_citation", "Brand Rulebook Sec. 1.0"),
+                check_type="Deterministic Inline Span"
+            ))
+
+    raw_spans.sort(key=lambda sp: sp.start_index)
+    for idx, sp in enumerate(raw_spans, start=1):
+        sp.id = f"INLINE-{idx}"
+    return raw_spans
 
 # ---------------------------------------------------------
 # API ENDPOINTS
@@ -531,6 +614,97 @@ async def audit_visual_asset(
     }
 
     return response_payload
+
+@app.post("/api/audit-inline", response_model=InlineAuditResponse)
+def audit_inline_draft(payload: InlineAuditRequest):
+    """
+    Round 3 Improvement 2: Ultra-fast non-persisting live linting endpoint for the
+    Vertity AI Chrome/Edge Browser Extension (Google Docs, LinkedIn, WordPress, CMS).
+    Does NOT insert keystroke drafts into SUBMISSIONS_DB.
+    """
+    text = payload.text or ""
+    spans = _evaluate_inline_spans(text)
+
+    penalty = sum(18 if sp.severity == "high" else 10 for sp in spans)
+    score = max(0, 100 - penalty)
+    ai_summary = (
+        f"Flagged {len(spans)} grounded issue(s) inline in {payload.platform}."
+        if spans else
+        f"Clean draft in {payload.platform}: zero Brand Rulebook drift detected."
+    )
+
+    if payload.include_ai and AI_ENGINE_LOADED and len(text.strip()) >= 25:
+        try:
+            guidelines_text = "\n".join([f"- {r['category']}: {r['description']}" for r in BRAND_GUIDELINES])
+            ai_output = analyze_content_text(text, guidelines_text)
+            score = max(0, min(100, min(score, ai_output.overall_compliance_score)))
+            if ai_output.summary:
+                ai_summary = ai_output.summary
+            existing_lower = {sp.original_text_snippet.lower() for sp in spans}
+            next_idx = len(spans) + 1
+            for issue in ai_output.flagged_issues:
+                snip = (issue.original_text_snippet or "").strip()
+                if not snip or snip.lower() in existing_lower:
+                    continue
+                pos = text.lower().find(snip.lower())
+                if pos == -1:
+                    continue
+                end_pos = pos + len(snip)
+                if any(not (end_pos <= sp.start_index or pos >= sp.end_index) for sp in spans):
+                    continue
+                spans.append(InlineFlaggedSpan(
+                    id=f"INLINE-{next_idx}",
+                    guideline_id=None,
+                    category=issue.category,
+                    severity=issue.severity,
+                    original_text_snippet=text[pos:end_pos],
+                    start_index=pos,
+                    end_index=end_pos,
+                    explanation=issue.explanation,
+                    suggested_correction=issue.suggested_correction,
+                    source_citation=getattr(issue, "source_citation", "Brand Rulebook §1.0"),
+                    check_type=getattr(issue, "check_type", "Semantic LLM Inline")
+                ))
+                existing_lower.add(snip.lower())
+                next_idx += 1
+        except Exception as e:
+            print(f"[Inline AI Warning] {e}")
+
+    status = "clean" if len(spans) == 0 else ("needs_review" if score > 60 else "flagged")
+    return InlineAuditResponse(
+        overall_compliance_score=score,
+        status=status,
+        summary=ai_summary,
+        platform=payload.platform or "Web Editor",
+        flagged_issues=spans,
+        analyzed_at=datetime.utcnow().isoformat(),
+        persisted=False
+    )
+
+@app.get("/api/extension/download")
+def download_chrome_extension():
+    """
+    Round 3 Improvement 2: Packages the Manifest V3 Vertity AI Browser Extension
+    (`chrome_extension/`) into an instant downloadable ZIP bundle for Chrome/Edge Developer Mode.
+    """
+    ext_dir = os.path.join(os.path.dirname(__file__), "chrome_extension")
+    if not os.path.isdir(ext_dir):
+        raise HTTPException(status_code=404, detail="chrome_extension package directory not found")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root_dir, _, files in os.walk(ext_dir):
+            for fname in sorted(files):
+                abs_path = os.path.join(root_dir, fname)
+                rel_path = os.path.relpath(abs_path, ext_dir).replace("\\", "/")
+                zf.write(abs_path, arcname=rel_path)
+
+    zip_buffer.seek(0)
+    headers = {
+        "Content-Disposition": 'attachment; filename="Vertity-AI-Chrome-Extension.zip"',
+        "Cache-Control": "no-cache"
+    }
+    return StreamingResponse(zip_buffer, media_type="application/zip", headers=headers)
 
 @app.get("/api/submissions")
 def list_submissions():
