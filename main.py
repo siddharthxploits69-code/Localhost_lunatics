@@ -13,14 +13,16 @@ from typing import List, Optional, Dict
 from datetime import datetime
 from collections import Counter
 import os
+import re
 import json
 
 # Import the AI/ML Engine
 try:
-    from ai_engine import analyze_content_text, ContentAuditOutput
+    from ai_engine import analyze_content_text, analyze_brand_visuals, ContentAuditOutput, DEFAULT_APPROVED_PALETTE
     AI_ENGINE_LOADED = True
 except ImportError:
     AI_ENGINE_LOADED = False
+    DEFAULT_APPROVED_PALETTE = ["#6366F1", "#0F172A", "#06B6D4", "#FFFFFF", "#F8FAFC", "#1E293B", "#10B981"]
 
 app = FastAPI(
     title="Vertity AI - Governance API",
@@ -40,7 +42,9 @@ app.add_middleware(
 # Ensure upload directory exists and mount static files
 UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 GUIDELINE_UPLOADS_DIR = os.path.join(UPLOADS_DIR, "guidelines")
+VISUAL_UPLOADS_DIR = os.path.join(UPLOADS_DIR, "visuals")
 os.makedirs(GUIDELINE_UPLOADS_DIR, exist_ok=True)
+os.makedirs(VISUAL_UPLOADS_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 # ---------------------------------------------------------
@@ -404,6 +408,129 @@ def audit_content(payload: AuditRequest):
     }
 
     return result
+
+@app.post("/api/audit-visual")
+async def audit_visual_asset(
+    file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+    channel_source: Optional[str] = Form("Creative Visual Upload"),
+    creator_name: Optional[str] = Form("Design Team")
+):
+    """
+    Round 3 Improvement 1: Multimodal Visual Banner & WCAG 2.1 AA Accessibility Auditor.
+    Extracts actual hex swatches via Pillow quantization, computes WCAG 2.1 luminance contrast ratios,
+    and performs Gemini Vision inspection for OCR copy drift, logo detection, alt-text, and region heatmaps.
+    """
+    image_bytes = await file.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded image file is empty")
+
+    # Sanitize filename and save visual asset
+    safe_name = os.path.basename(file.filename or "banner_upload.png").replace(" ", "_")
+    saved_path = os.path.join(VISUAL_UPLOADS_DIR, safe_name)
+    try:
+        with open(saved_path, "wb") as f:
+            f.write(image_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to store visual asset: {e}")
+
+    # Dynamically extract approved hex palette tokens from Rulebook Visuals rules
+    approved_hexes = []
+    for rule in BRAND_GUIDELINES:
+        if rule.get("category") in ("Visuals", "Accessibility"):
+            found_hexes = re.findall(r"#[0-9A-Fa-f]{6}", rule.get("description", ""))
+            approved_hexes.extend([h.upper() for h in found_hexes])
+    # Always merge baseline neutrals & brand tokens so neutral text/surfaces aren't penalized
+    merged_palette = list(dict.fromkeys(approved_hexes + DEFAULT_APPROVED_PALETTE))
+
+    guidelines_text = "\n".join([f"- [{r['id']}] {r['category']}: {r['description']}" for r in BRAND_GUIDELINES])
+
+    if not AI_ENGINE_LOADED:
+        raise HTTPException(status_code=503, detail="Visual AI Engine not loaded")
+
+    try:
+        visual_output = analyze_brand_visuals(image_bytes, merged_palette, guidelines_text)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not analyze image file: {e}")
+
+    # Convert visual & accessibility region findings + any OCR text drift into standard FlaggedIssue objects
+    all_flags: List[FlaggedIssue] = []
+    flag_counter = 1
+
+    for region in visual_output.flagged_regions:
+        rule_id = "RULE-07" if region.category == "Visuals" else ("RULE-08" if region.category == "Accessibility" else "RULE-02")
+        all_flags.append(FlaggedIssue(
+            id=f"FLAG-{flag_counter}",
+            guideline_id=rule_id,
+            category=region.category,
+            severity=region.severity,
+            original_text_snippet=region.label,
+            explanation=region.explanation,
+            suggested_correction=region.suggested_fix,
+            source_citation=region.source_citation,
+            check_type="Pillow Color/WCAG Math + Vision",
+            confidence="High (Pixel + WCAG Verified)",
+            issue_type="violation"
+        ))
+        flag_counter += 1
+
+    # Also run deterministic text rules against any OCR text extracted from the banner
+    if visual_output.extracted_text_ocr and "Deterministic pixel" not in visual_output.extracted_text_ocr:
+        ocr_flags = evaluate_content_rules(visual_output.extracted_text_ocr)
+        for f in ocr_flags:
+            f.id = f"FLAG-{flag_counter}"
+            f.check_type = "Vision OCR + Deterministic Rule"
+            all_flags.append(f)
+            flag_counter += 1
+
+    final_score = visual_output.overall_compliance_score
+    if len(all_flags) == 0 and final_score >= 85:
+        status = "clean"
+    elif final_score >= 60:
+        status = "needs_review"
+    else:
+        status = "flagged"
+
+    submission_id = f"SUB-{len(SUBMISSIONS_DB) + 1:04d}"
+    doc_title = title or f"Visual Asset: {safe_name}"
+    analyzed_at = datetime.utcnow().isoformat()
+
+    response_payload = {
+        "submission_id": submission_id,
+        "overall_compliance_score": final_score,
+        "status": status,
+        "summary": visual_output.visual_feedback,
+        "flagged_issues": [f.dict() for f in all_flags],
+        "analyzed_at": analyzed_at,
+        "visual_audit": {
+            "filename": safe_name,
+            "image_url": f"/uploads/visuals/{safe_name}",
+            "image_dimensions": visual_output.image_dimensions,
+            "analysis_mode": visual_output.analysis_mode,
+            "palette_compliance_score": visual_output.palette_compliance_score,
+            "dominant_colors_hex": visual_output.dominant_colors_hex,
+            "swatches": [s.dict() for s in visual_output.swatches],
+            "contrast_audit": visual_output.contrast_audit.dict(),
+            "brand_logo_detected": visual_output.brand_logo_detected,
+            "extracted_text_ocr": visual_output.extracted_text_ocr,
+            "generated_alt_text": visual_output.generated_alt_text,
+            "flagged_regions": [r.dict() for r in visual_output.flagged_regions],
+        }
+    }
+
+    SUBMISSIONS_DB[submission_id] = {
+        "request": {
+            "title": doc_title,
+            "content_type": "visual_banner",
+            "channel_source": channel_source,
+            "creator_name": creator_name,
+            "content_text": f"[Visual Asset {safe_name}] {visual_output.extracted_text_ocr}"
+        },
+        "response": response_payload,
+        "workflow_state": "AI Audited"
+    }
+
+    return response_payload
 
 @app.get("/api/submissions")
 def list_submissions():

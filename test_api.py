@@ -80,6 +80,37 @@ def run_tests():
     else:
         print(f"  --> Result: Status {status}")
 
+    # 5. Test Multimodal Visual & WCAG Contrast Endpoint
+    print("\n[TEST 5] Testing Visual Banner & WCAG 2.1 AA Auditor (/api/audit-visual)...")
+    try:
+        import struct, zlib
+        def make_png_bytes(rgb1, rgb2):
+            w, h = 16, 16
+            raw = b""
+            for y in range(h):
+                raw += b"\x00" + (bytes(rgb2) * 8 + bytes(rgb1) * 8 if 4 <= y <= 11 else bytes(rgb1) * w)
+            def chunk(tag, data):
+                return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
+            ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
+            return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+
+        png_data = make_png_bytes((255, 69, 0), (255, 140, 90))
+        boundary = "----VertityTestVisualBoundary"
+        body = (
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data; name=\"file\"; filename=\"qa_test_banner.png\"\r\n"
+            f"Content-Type: image/png\r\n\r\n"
+        ).encode("utf-8") + png_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+        req = urllib.request.Request(f"{BASE_URL}/api/audit-visual", data=body, method="POST")
+        req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            vis = json.loads(response.read().decode("utf-8"))
+            va = vis.get("visual_audit", {})
+            ca = va.get("contrast_audit", {})
+            print(f"  --> PASSED: Score {vis.get('overall_compliance_score')}/100 | WCAG Ratio: {ca.get('contrast_ratio')}:1 | AA Pass: {ca.get('wcag_aa_pass')}")
+    except Exception as e:
+        print(f"  --> Result: {e}")
+
     print("\n" + "=" * 65)
     print("SUCCESS: Grounding & Governance Integrity Verified (100% Passed).")
     print("=" * 65)

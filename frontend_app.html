@@ -246,35 +246,111 @@
             </div>
           </div>
 
-          <!-- 3. VISUAL PALETTE AUDITOR -->
+          <!-- 3. MULTIMODAL VISUAL & WCAG 2.1 AA AUDITOR -->
           <div id="panel-visual-checker" class="hidden space-y-4">
-            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Visual Asset & Graphic Consistency Inspector</label>
-            <div id="image-dropzone" onclick="document.getElementById('file-img-input').click()" class="border-2 border-dashed border-slate-800 hover:border-cyan-500 bg-slate-950/60 hover:bg-slate-950 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center group">
-              <input type="file" id="file-img-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-              <div class="w-14 h-14 rounded-2xl bg-cyan-600/10 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-110 transition shadow-lg">
-                <i data-lucide="palette" class="w-7 h-7"></i>
-              </div>
-              <p class="text-sm font-bold text-white">Upload Marketing Banner, Social Ad or Graphic</p>
-              <p class="text-xs text-slate-400 mt-1">Extracts dominant hex swatches and checks against approved brand palette</p>
+            <div class="flex items-center justify-between">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Multimodal Visual Banner &amp; WCAG 2.1 AA Accessibility Inspector</label>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Pixel Quantization + WCAG Math + Vision</span>
             </div>
 
-            <div id="image-results-card" class="hidden bg-slate-950/90 border border-slate-800 rounded-xl p-4 flex items-center space-x-5 shadow-lg">
-              <img id="img-preview" class="w-24 h-24 object-cover rounded-xl border border-slate-700 shadow-md" src="" alt="Banner Preview">
-              <div class="flex-1">
-                <div class="flex items-center justify-between mb-1.5">
-                  <span class="text-xs font-bold text-white flex items-center space-x-1.5">
-                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
-                    <span>Brand Visual Palette Verified (94% Match)</span>
-                  </span>
-                  <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-bold border border-emerald-500/30">Verified</span>
-                </div>
-                <p class="text-xs text-slate-300 mb-2.5">Dominant colors match corporate Primary Indigo and Dark Slate guidelines. Aspect ratio meets standard 16:9 banner specifications.</p>
+            <div id="image-dropzone" onclick="document.getElementById('file-img-input').click()" class="border-2 border-dashed border-slate-800 hover:border-cyan-500 bg-slate-950/60 hover:bg-slate-950 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition text-center group">
+              <input type="file" id="file-img-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+              <div class="w-12 h-12 rounded-2xl bg-cyan-600/10 text-cyan-400 flex items-center justify-center mb-2.5 group-hover:scale-110 transition shadow-lg">
+                <i data-lucide="scan-eye" class="w-6 h-6"></i>
+              </div>
+              <p class="text-sm font-bold text-white">Upload Marketing Banner, Social Ad or Graphic</p>
+              <p class="text-xs text-slate-400 mt-1">Extracts dominant hex swatches, calculates exact WCAG 2.1 AA contrast ratios &amp; locates off-brand regions</p>
+            </div>
+
+            <!-- LOADING SCANNER -->
+            <div id="visual-loading-state" class="hidden bg-slate-950/90 border border-cyan-500/30 rounded-xl p-5 flex items-center justify-center space-x-3">
+              <i data-lucide="loader-2" class="w-5 h-5 text-cyan-400 animate-spin"></i>
+              <span class="text-xs font-semibold text-cyan-300">Scanning pixel clusters, computing WCAG 2.1 luminance contrast &amp; checking brand palette...</span>
+            </div>
+
+            <!-- VISUAL AUDIT RESULTS + HEATMAP OVERLAY -->
+            <div id="image-results-card" class="hidden bg-slate-950/95 border border-slate-800 rounded-2xl p-4 space-y-4 shadow-xl">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span id="visual-status-title" class="text-xs font-bold text-white flex items-center space-x-1.5">
+                  <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                  <span>Visual Audit Complete</span>
+                </span>
                 <div class="flex items-center space-x-2">
-                  <span class="text-[11px] text-slate-400 font-medium">Extracted Swatches:</span>
-                  <div class="w-6 h-6 rounded-lg bg-[#1e40af] border border-white/20 shadow-sm" title="#1E40AF (Primary Brand Blue)"></div>
-                  <div class="w-6 h-6 rounded-lg bg-[#0f172a] border border-white/20 shadow-sm" title="#0F172A (Corporate Slate)"></div>
-                  <div class="w-6 h-6 rounded-lg bg-[#10b981] border border-white/20 shadow-sm" title="#10B981 (Growth Emerald)"></div>
-                  <div class="w-6 h-6 rounded-lg bg-[#f8fafc] border border-white/20 shadow-sm" title="#F8FAFC (Neutral Surface)"></div>
+                  <button type="button" onclick="toggleVisualHeatmap()" id="btn-toggle-heatmap" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-1 rounded-lg font-semibold transition flex items-center space-x-1">
+                    <i data-lucide="layers" class="w-3 h-3"></i>
+                    <span id="heatmap-toggle-text">Hide Region Heatmap</span>
+                  </button>
+                  <span id="visual-mode-badge" class="text-[10px] bg-indigo-500/15 text-indigo-300 px-2 py-0.5 rounded-full font-mono border border-indigo-500/30">Pillow + WCAG Math</span>
+                </div>
+              </div>
+
+              <!-- INTERACTIVE BOUNDING BOX HEATMAP PREVIEW -->
+              <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-col items-center">
+                <div id="visual-preview-wrapper" class="relative inline-block max-w-full overflow-hidden rounded-lg border border-slate-700 shadow-lg">
+                  <img id="img-preview" class="max-h-64 w-auto block object-contain" src="" alt="Banner Preview">
+                  <div id="visual-heatmap-overlay" class="absolute inset-0 pointer-events-auto"></div>
+                </div>
+                <div id="visual-dimensions-meta" class="text-[10px] font-mono text-slate-400 mt-2"></div>
+              </div>
+
+              <!-- WCAG 2.1 AA CONTRAST RATIO & PALETTE SWATCHES GRID -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- WCAG Contrast Panel -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1">
+                      <i data-lucide="contrast" class="w-3.5 h-3.5 text-purple-400"></i>
+                      <span>WCAG 2.1 AA Contrast</span>
+                    </span>
+                    <span id="wcag-pass-badge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PASS</span>
+                  </div>
+                  <div class="flex items-center justify-between bg-slate-950/80 border border-slate-800 rounded-lg p-2">
+                    <div class="flex items-center space-x-2">
+                      <div id="wcag-sample-chip" class="px-2.5 py-1 rounded text-xs font-bold border border-white/10 shadow-inner">Aa</div>
+                      <div class="text-[11px] font-mono text-slate-300">
+                        <div id="wcag-pair-hex">#FFFFFF on #0F172A</div>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div id="wcag-ratio-num" class="text-sm font-extrabold font-mono text-white">17.8:1</div>
+                      <div class="text-[9px] text-slate-500 uppercase">Min 4.5:1 AA</div>
+                    </div>
+                  </div>
+                  <div id="wcag-recommendation-box" class="hidden text-[11px] bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 flex items-center justify-between gap-2">
+                    <span class="text-amber-300 font-medium">Fix: <code id="wcag-rec-pair" class="font-mono font-bold text-white">#FFFFFF on #0F172A</code></span>
+                    <button type="button" onclick="copyRecommendedContrastPair(this)" class="text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded font-semibold transition">Copy Pair</button>
+                  </div>
+                </div>
+
+                <!-- Extracted Swatches Panel -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1">
+                      <i data-lucide="palette" class="w-3.5 h-3.5 text-cyan-400"></i>
+                      <span>Extracted Palette Swatches</span>
+                    </span>
+                    <span id="palette-score-badge" class="text-[11px] font-mono font-bold text-cyan-300">94% Match</span>
+                  </div>
+                  <div id="extracted-swatches-list" class="flex flex-wrap gap-1.5"></div>
+                </div>
+              </div>
+
+              <!-- AUTO-GENERATED ALT TEXT & OCR SUMMARY -->
+              <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1">
+                    <i data-lucide="accessibility" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Auto-Generated Screen-Reader Alt Text</span>
+                  </span>
+                  <button type="button" onclick="copyVisualAltText(this)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-2 py-0.5 rounded font-semibold transition flex items-center space-x-1">
+                    <i data-lucide="copy" class="w-3 h-3"></i>
+                    <span>Copy Alt-Text</span>
+                  </button>
+                </div>
+                <p id="visual-alt-text" class="text-xs text-slate-300 italic bg-slate-950/70 border border-slate-800/80 rounded-lg p-2"></p>
+                <div class="text-[11px] text-slate-400">
+                  <span class="font-semibold text-slate-300">Banner Copy / OCR:</span>
+                  <span id="visual-ocr-text" class="font-mono text-slate-400"></span>
                 </div>
               </div>
             </div>
@@ -709,20 +785,198 @@
       reader.readAsText(file);
     }
 
-    // Handle Image Upload
-    function handleImageUpload(e) {
+    let lastUploadedVisualFile = null;
+    let isHeatmapVisible = true;
+    let latestVisualAudit = null;
+
+    // Handle Image Upload -> Runs Real Backend Pixel + WCAG + Vision Audit
+    async function handleImageUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
+      lastUploadedVisualFile = file;
 
       const reader = new FileReader();
       reader.onload = function(evt) {
         const preview = document.getElementById('img-preview');
         preview.src = evt.target.result;
-        document.getElementById('image-results-card').classList.remove('hidden');
-        confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
-        lucide.createIcons();
       };
       reader.readAsDataURL(file);
+
+      await runVisualAudit(file);
+    }
+
+    async function runVisualAudit(file) {
+      if (!file) return;
+      const loadingEl = document.getElementById('visual-loading-state');
+      const resultsCard = document.getElementById('image-results-card');
+      const btn = document.getElementById('btn-audit');
+      const btnText = document.getElementById('btn-audit-text');
+
+      loadingEl.classList.remove('hidden');
+      resultsCard.classList.add('hidden');
+      btn.disabled = true;
+      btnText.innerText = "Scanning Visuals...";
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const titleInput = document.getElementById('doc-title')?.value;
+        const channelInput = document.getElementById('doc-channel')?.value || 'Creative Visual Upload';
+        if (titleInput) formData.append('title', titleInput);
+        formData.append('channel_source', channelInput);
+
+        const response = await fetch(`${API_BASE}/api/audit-visual`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Visual audit request failed');
+        }
+
+        const data = await response.json();
+        latestAuditData = data;
+        latestVisualAudit = data.visual_audit;
+        renderVisualAuditResults(data);
+        renderAuditResults(data);
+      } catch (err) {
+        alert(`Visual audit error: ${err.message}`);
+      } finally {
+        loadingEl.classList.add('hidden');
+        btn.disabled = false;
+        btnText.innerText = "Audit with Vertity AI";
+      }
+    }
+
+    function renderVisualAuditResults(data) {
+      const va = data.visual_audit;
+      if (!va) return;
+
+      document.getElementById('image-results-card').classList.remove('hidden');
+
+      // Status Header & Analysis Mode
+      const statusTitle = document.getElementById('visual-status-title');
+      const isClean = data.overall_compliance_score >= 85 && (va.flagged_regions || []).length === 0;
+      statusTitle.innerHTML = isClean
+        ? `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i><span>Visual &amp; WCAG Audit Passed (${va.palette_compliance_score}% Palette Match)</span>`
+        : `<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i><span>Visual Compliance Alerts (${(va.flagged_regions || []).length} Regions Flagged)</span>`;
+      document.getElementById('visual-mode-badge').innerText = va.analysis_mode || 'Pillow + WCAG Math';
+      document.getElementById('visual-dimensions-meta').innerText = `Asset: ${va.filename} | Dimensions: ${va.image_dimensions}px | Logo Detected: ${va.brand_logo_detected ? 'Yes' : 'Not Detected'}`;
+
+      // Render Interactive Bounding Box Heatmap Overlay
+      const overlay = document.getElementById('visual-heatmap-overlay');
+      overlay.innerHTML = '';
+      isHeatmapVisible = true;
+      overlay.classList.remove('hidden');
+      document.getElementById('heatmap-toggle-text').innerText = 'Hide Region Heatmap';
+
+      (va.flagged_regions || []).forEach((reg, idx) => {
+        if (!reg.box_2d || reg.box_2d.length !== 4) return;
+        const [ymin, xmin, ymax, xmax] = reg.box_2d;
+        const topPct = Math.max(0, Math.min(95, ymin / 10));
+        const leftPct = Math.max(0, Math.min(95, xmin / 10));
+        const heightPct = Math.max(8, Math.min(100 - topPct, (ymax - ymin) / 10));
+        const widthPct = Math.max(10, Math.min(100 - leftPct, (xmax - xmin) / 10));
+
+        const isHigh = (reg.severity || '').toLowerCase() === 'high';
+        const borderCls = isHigh ? 'border-red-500 bg-red-500/20' : 'border-amber-400 bg-amber-400/20';
+        const badgeCls = isHigh ? 'bg-red-600 text-white' : 'bg-amber-500 text-slate-950';
+
+        const boxEl = document.createElement('div');
+        boxEl.className = `absolute border-2 ${borderCls} rounded transition hover:bg-opacity-30 cursor-help group`;
+        boxEl.style.top = `${topPct}%`;
+        boxEl.style.left = `${leftPct}%`;
+        boxEl.style.height = `${heightPct}%`;
+        boxEl.style.width = `${widthPct}%`;
+        boxEl.title = `${reg.label}: ${reg.explanation}`;
+        boxEl.innerHTML = `
+          <span class="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap shadow ${badgeCls}">
+            #${idx + 1} ${reg.label}
+          </span>
+        `;
+        overlay.appendChild(boxEl);
+      });
+
+      // Render WCAG 2.1 AA Contrast Panel
+      const ca = va.contrast_audit;
+      if (ca) {
+        const badge = document.getElementById('wcag-pass-badge');
+        const recBox = document.getElementById('wcag-recommendation-box');
+        if (ca.wcag_aa_pass) {
+          badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          badge.innerText = ca.wcag_aaa_pass ? 'PASS AAA' : 'PASS AA';
+          recBox.classList.add('hidden');
+        } else {
+          badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500/20 text-red-400 border border-red-500/30';
+          badge.innerText = 'FAIL AA (< 4.5:1)';
+          recBox.classList.remove('hidden');
+          document.getElementById('wcag-rec-pair').innerText = `${ca.recommended_foreground_hex} on ${ca.recommended_background_hex} (${ca.recommended_ratio}:1)`;
+        }
+
+        const chip = document.getElementById('wcag-sample-chip');
+        chip.style.color = ca.foreground_hex;
+        chip.style.backgroundColor = ca.background_hex;
+        document.getElementById('wcag-pair-hex').innerText = `${ca.foreground_hex} on ${ca.background_hex}`;
+        document.getElementById('wcag-ratio-num').innerText = `${ca.contrast_ratio}:1`;
+      }
+
+      // Render Extracted Palette Swatches
+      document.getElementById('palette-score-badge').innerText = `${va.palette_compliance_score}% Match`;
+      const swatchContainer = document.getElementById('extracted-swatches-list');
+      swatchContainer.innerHTML = '';
+      (va.swatches || []).forEach(sw => {
+        const pill = document.createElement('div');
+        const statusCls = sw.is_approved
+          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+          : 'border-red-500/40 bg-red-500/10 text-red-300';
+        pill.className = `flex items-center space-x-1.5 px-2 py-1 rounded-lg border text-[10px] font-mono ${statusCls}`;
+        pill.title = sw.is_approved
+          ? `Approved brand palette match (${sw.coverage_pct}% coverage)`
+          : `Off-brand hue (${sw.coverage_pct}% coverage). Closest approved: ${sw.closest_approved_hex}`;
+        pill.innerHTML = `
+          <span class="w-3.5 h-3.5 rounded border border-white/30 inline-block" style="background:${sw.hex_code}"></span>
+          <span>${sw.hex_code}</span>
+          <span class="text-slate-400">${sw.coverage_pct}%</span>
+          <span>${sw.is_approved ? '✓' : '→ ' + sw.closest_approved_hex}</span>
+        `;
+        swatchContainer.appendChild(pill);
+      });
+
+      // Render Auto-Generated Alt Text & OCR
+      document.getElementById('visual-alt-text').innerText = va.generated_alt_text || 'No alt text generated.';
+      document.getElementById('visual-ocr-text').innerText = va.extracted_text_ocr || 'None detected.';
+
+      lucide.createIcons();
+    }
+
+    function toggleVisualHeatmap() {
+      const overlay = document.getElementById('visual-heatmap-overlay');
+      const txt = document.getElementById('heatmap-toggle-text');
+      isHeatmapVisible = !isHeatmapVisible;
+      if (isHeatmapVisible) {
+        overlay.classList.remove('hidden');
+        txt.innerText = 'Hide Region Heatmap';
+      } else {
+        overlay.classList.add('hidden');
+        txt.innerText = 'Show Region Heatmap';
+      }
+    }
+
+    function copyVisualAltText(btnEl) {
+      const text = document.getElementById('visual-alt-text').innerText;
+      navigator.clipboard?.writeText(text);
+      const original = btnEl.innerHTML;
+      btnEl.innerText = '✓ Alt-Text Copied!';
+      setTimeout(() => { btnEl.innerHTML = original; lucide.createIcons(); }, 1800);
+    }
+
+    function copyRecommendedContrastPair(btnEl) {
+      const pair = document.getElementById('wcag-rec-pair').innerText;
+      navigator.clipboard?.writeText(pair);
+      const original = btnEl.innerText;
+      btnEl.innerText = '✓ Copied';
+      setTimeout(() => { btnEl.innerText = original; }, 1800);
     }
 
     // Toggle Diff Highlighting
@@ -801,6 +1055,16 @@ The migration path is intuitively designed and demonstrably superior to legacy a
 
     // Run Brand Audit
     async function runBrandAudit() {
+      const panelVisual = document.getElementById('panel-visual-checker');
+      if (panelVisual && !panelVisual.classList.contains('hidden')) {
+        if (!lastUploadedVisualFile) {
+          alert("Please upload a marketing banner or visual graphic first!");
+          return;
+        }
+        await runVisualAudit(lastUploadedVisualFile);
+        return;
+      }
+
       const title = document.getElementById('doc-title').value;
       const type = document.getElementById('doc-type').value;
       const channel = document.getElementById('doc-channel') ? document.getElementById('doc-channel').value : "External Agency";
@@ -991,6 +1255,14 @@ The migration path is intuitively designed and demonstrably superior to legacy a
 
     // 1-Click Fix Function
     function acceptCorrection(badSnippet, goodReplacement) {
+      const panelVisual = document.getElementById('panel-visual-checker');
+      if (panelVisual && !panelVisual.classList.contains('hidden')) {
+        navigator.clipboard?.writeText(goodReplacement);
+        confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+        alert(`Visual Fix Copied to Clipboard:\n${goodReplacement}`);
+        return;
+      }
+
       const textarea = document.getElementById('doc-text');
       const regex = new RegExp(badSnippet, 'gi');
       textarea.value = textarea.value.replace(regex, goodReplacement);

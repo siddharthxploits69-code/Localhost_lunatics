@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+round2_report.html
+uploads/visuals/*
+!uploads/visuals/.gitkeep
+uploads/guidelines/*
+!uploads/guidelines/.gitkeep
