@@ -25,9 +25,30 @@ class PDFDocument:
         self.width = page_width
         self.height = page_height
         self.objects: List[bytes] = []
-        self.pages: List[int] = [] # Object IDs of pages
+        self.pages: List[tuple] = [] # Object data of pages
         self.current_stream = io.BytesIO()
         self.page_number = 0
+        self.images: List[tuple] = [] # List of (name, width, height, jpeg_bytes)
+
+    def add_image(self, name: str, jpeg_path_or_bytes, width: int = None, height: int = None):
+        """Registers a JPEG image to be embedded in the PDF document."""
+        if isinstance(jpeg_path_or_bytes, str):
+            with open(jpeg_path_or_bytes, "rb") as f:
+                raw_bytes = f.read()
+            from PIL import Image
+            with Image.open(jpeg_path_or_bytes) as im:
+                w, h = im.size
+        elif isinstance(jpeg_path_or_bytes, bytes):
+            raw_bytes = jpeg_path_or_bytes
+            w, h = width or 800, height or 400
+        else:
+            raise ValueError("Invalid image input: expected file path or bytes")
+        self.images.append((name, w, h, raw_bytes))
+
+    def draw_image(self, name: str, x: float, y: float, w: float, h: float):
+        """Draws a registered image at (x, y) with width w and height h."""
+        cmd = f"q {w:.2f} 0 0 {h:.2f} {x:.2f} {y:.2f} cm /{name} Do Q\n"
+        self.current_stream.write(cmd.encode("ascii"))
 
     def start_page(self):
         self.page_number += 1
@@ -59,8 +80,6 @@ class PDFDocument:
         # Package stream into object
         stream_bytes = self.current_stream.getvalue()
         compressed = zlib.compress(stream_bytes)
-        
-        # We will add Page object and Content stream object during build()
         self.pages.append((self.width, self.height, compressed, len(stream_bytes)))
 
     def build(self) -> bytes:
@@ -86,10 +105,25 @@ class PDFDocument:
         # Obj 4: Font Courier-Bold (F4)
         f4_id = write_obj(b"<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>")
 
+        # Write Image Objects (Objs 5 to 4 + len(self.images))
+        img_obj_map = {}
+        for name, im_w, im_h, jpg_bytes in self.images:
+            img_dict = (
+                f"<< /Type /XObject /Subtype /Image /Width {im_w} /Height {im_h} "
+                f"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode "
+                f"/Length {len(jpg_bytes)} >>\nstream\n"
+            ).encode("ascii")
+            im_id = write_obj(img_dict + jpg_bytes + b"\nendstream")
+            img_obj_map[name] = im_id
+
         # Page and Content objects
-        # Number of fonts = 4. Each page has 2 objects: content stream and page object.
-        pages_obj_id = 4 + (len(self.pages) * 2) + 1
+        base_objs = 4 + len(self.images)
+        pages_obj_id = base_objs + (len(self.pages) * 2) + 1
         page_ids: List[int] = []
+
+        xobject_str = ""
+        if img_obj_map:
+            xobject_str = " /XObject << " + " ".join(f"/{name} {oid} 0 R" for name, oid in img_obj_map.items()) + " >>"
 
         for p_width, p_height, comp_stream, orig_len in self.pages:
             # Stream obj
@@ -101,7 +135,7 @@ class PDFDocument:
                 f"<< /Type /Page /Parent {pages_obj_id} 0 R "
                 f"/MediaBox [0 0 {p_width:.2f} {p_height:.2f}] "
                 f"/Contents {content_id} 0 R "
-                f"/Resources << /Font << /F1 {f1_id} 0 R /F2 {f2_id} 0 R /F3 {f3_id} 0 R /F4 {f4_id} 0 R >> >> >>"
+                f"/Resources << /Font << /F1 {f1_id} 0 R /F2 {f2_id} 0 R /F3 {f3_id} 0 R /F4 {f4_id} 0 R >>{xobject_str} >> >>"
             ).encode("ascii")
             p_id = write_obj(page_content)
             page_ids.append(p_id)
@@ -123,6 +157,13 @@ class PDFDocument:
             out.write(f"{off:010d} 00000 n \n".encode("ascii"))
 
         # Trailer
+        trailer = (
+            f"trailer\n<< /Size {total_objs} /Root {catalog_id} 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode("ascii")
+        out.write(trailer)
+
+        return out.getvalue()
         trailer = (
             f"trailer\n<< /Size {total_objs} /Root {catalog_id} 0 R >>\n"
             f"startxref\n{xref_offset}\n%%EOF\n"
