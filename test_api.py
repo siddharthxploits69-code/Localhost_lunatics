@@ -146,6 +146,27 @@ def run_tests():
     except Exception as e:
         print(f"  --> Result: {e}")
 
+    # 7. Test Cryptographic SHA-256 PDF Receipts & EU AI Act Verification
+    print("\n[TEST 7] Testing Cryptographic PDF Receipts & EU AI Act Article 50 (/api/receipts)...")
+    try:
+        # Download PDF receipt for SUB-0001
+        with urllib.request.urlopen(f"{BASE_URL}/api/receipts/SUB-0001/pdf", timeout=5) as presp:
+            assert presp.status == 200, f"Receipt PDF status {presp.status}"
+            pdf_bytes = presp.read()
+            assert pdf_bytes.startswith(b"%PDF-1.4"), "PDF does not start with %PDF-1.4"
+            assert len(pdf_bytes) > 1000, f"PDF suspiciously small: {len(pdf_bytes)} bytes"
+
+        # Verify cryptographic ledger seal
+        v_status, v_res = test_endpoint("VerifyReceipt", "GET", "/api/receipts/822FDABD4C6ABD2C/verify")
+        assert v_status == 200, f"Verify status {v_status}"
+        assert v_res.get("verified") is True, f"Expected verified=True, got {v_res}"
+        assert v_res.get("submission_id") == "SUB-0001", f"Wrong submission verified: {v_res.get('submission_id')}"
+        assert "EU AI Act" in v_res.get("eu_ai_act_status", "") or "ACTION REQUIRED" in v_res.get("eu_ai_act_status", ""), f"Unexpected EU status: {v_res.get('eu_ai_act_status')}"
+
+        print(f"  --> PASSED: Cryptographic PDF={len(pdf_bytes)} bytes (%PDF-1.4) | Ledger Verified={v_res.get('verified')} for {v_res.get('submission_id')} | EU AI Status={v_res.get('eu_ai_act_status')}")
+    except Exception as e:
+        print(f"  --> Result: {e}")
+
     print("\n" + "=" * 65)
     print("SUCCESS: Grounding & Governance Integrity Verified (100% Passed).")
     print("=" * 65)

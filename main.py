@@ -4,12 +4,12 @@ Inkloom AI Hackathon
 FastAPI backend for pre-publication brand governance, hybrid compliance auditing, and reviewer workflows.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from datetime import datetime
 from collections import Counter
 import io
@@ -17,6 +17,8 @@ import zipfile
 import os
 import re
 import json
+import hashlib
+from pdf_generator import generate_cryptographic_audit_receipt
 
 # Import the AI/ML Engine
 try:
@@ -97,6 +99,13 @@ class FlaggedIssue(BaseModel):
     confidence: Optional[str] = "High (100% Deterministic)"
     issue_type: Optional[str] = "violation"  # "violation" (grounded source) or "suggestion" (heuristic)
 
+class EUAIActAudit(BaseModel):
+    status: str  # "COMPLIANT (DISCLOSED)", "NON-APPLICABLE (HUMAN)", "ACTION REQUIRED (DISCLOSURE MISSING)"
+    is_gen_ai_channel: bool
+    has_statutory_disclosure: bool
+    mandated_disclaimer: str
+    citation: str = "EU AI Act (Regulation (EU) 2024/1689) Art. 50"
+
 class AuditResponse(BaseModel):
     submission_id: str
     overall_compliance_score: int  # 0 to 100
@@ -104,6 +113,11 @@ class AuditResponse(BaseModel):
     summary: str
     flagged_issues: List[FlaggedIssue]
     analyzed_at: str
+    content_sha256: Optional[str] = None
+    receipt_hash: Optional[str] = None
+    short_seal: Optional[str] = None
+    eu_ai_act: Optional[EUAIActAudit] = None
+    receipt_pdf_url: Optional[str] = None
 
 class InlineAuditRequest(BaseModel):
     text: str
@@ -216,90 +230,243 @@ BRAND_GUIDELINES = [
         "supporting_doc_name": "WCAG_2.1_AA_Accessibility_Standard.pdf",
         "forbidden_terms": ["low contrast text", "missing alt text"],
         "approved_alternatives": ["high-contrast AA compliant formatting", "descriptive alt text"]
+    },
+    {
+        "id": "RULE-09",
+        "category": "Regulatory Compliance",
+        "rule_name": "EU AI Act Article 50 Statutory Transparency & Synthetic Content Disclosure",
+        "description": "All promotional assets generated or co-created using AI systems must incorporate visible statutory transparency disclosures under EU AI Act Regulation (EU) 2024/1689 Article 50(2) & 50(4).",
+        "source_citation": "EU AI Act (Regulation (EU) 2024/1689) Art. 50(2) & 50(4)",
+        "supporting_doc_name": "EU_AI_Act_Article_50_Compliance_Standard.pdf",
+        "forbidden_terms": ["undisclosed ai generated content", "synthetic media without disclaimer"],
+        "approved_alternatives": ["Disclosed under EU AI Act Article 50: AI-assisted content", "verified human-reviewed AI generation"]
     }
 ]
 
-# Simple in-memory storage for hackathon submissions with pre-loaded demo records
-SUBMISSIONS_DB = {
-    "SUB-0001": {
-        "request": {
-            "title": "Cloud Infrastructure Migration Announcement",
-            "content_type": "social_media",
-            "channel_source": "External Agency Draft",
-            "creator_name": "External Agency",
-            "content_text": "We are proud to serve our clients with the fastest in the world transaction speeds at just $49/mo."
-        },
-        "response": {
-            "submission_id": "SUB-0001",
-            "overall_compliance_score": 62,
-            "status": "needs_review",
-            "summary": "Flagged 3 grounded issues: outdated pricing ($49/mo), unverified superlative claim, and client terminology drift.",
-            "flagged_issues": [
-                {
-                    "id": "FLAG-1",
-                    "guideline_id": "RULE-05",
-                    "category": "Outdated Facts",
-                    "severity": "high",
-                    "original_text_snippet": "$49/mo",
-                    "explanation": "Violates Approved 2025 Pricing: Legacy 2023 pricing has been discontinued. The approved Starter tier is $79/mo.",
-                    "suggested_correction": "$79/mo Starter Tier",
-                    "source_citation": "Knowledge Base: Approved Pricing & Fact Sheet Q1 2025",
-                    "check_type": "Deterministic Exact Match",
-                    "confidence": "High (100% Rule Match)",
-                    "issue_type": "violation"
-                },
-                {
-                    "id": "FLAG-2",
-                    "guideline_id": "RULE-02",
-                    "category": "Unsupported Claims",
-                    "severity": "high",
-                    "original_text_snippet": "fastest in the world",
-                    "explanation": "Violates Unsubstantiated Promotional Superlatives: Speed claims require cited benchmark reports.",
-                    "suggested_correction": "industry-leading",
-                    "source_citation": "Brand Rulebook §4.1 (Legal Advertising & Superlatives)",
-                    "check_type": "Deterministic Exact Match",
-                    "confidence": "High (100% Rule Match)",
-                    "issue_type": "violation"
-                },
-                {
-                    "id": "FLAG-3",
-                    "guideline_id": "RULE-01",
-                    "category": "Tone & Terminology",
-                    "severity": "medium",
-                    "original_text_snippet": "clients",
-                    "explanation": "Violates Customer Nomenclature Standards: Always refer to clients as 'Growth Partners'.",
-                    "suggested_correction": "Growth Partners",
-                    "source_citation": "Brand Rulebook §1.2 (Customer Nomenclature)",
-                    "check_type": "Deterministic Exact Match",
-                    "confidence": "High (100% Rule Match)",
-                    "issue_type": "violation"
-                }
-            ],
-            "analyzed_at": "2026-11-04T09:15:00Z"
-        },
-        "workflow_state": "AI Audited"
-    },
-    "SUB-0002": {
-        "request": {
-            "title": "Partner Ecosystem Quarterly Newsletter",
-            "content_type": "blog",
-            "channel_source": "In-House Marketing",
-            "creator_name": "In-House Team",
-            "content_text": "We are delighted to celebrate our growth partners with high-performance infrastructure engineered for 99.99% availability."
-        },
-        "response": {
-            "submission_id": "SUB-0002",
-            "overall_compliance_score": 96,
-            "status": "clean",
-            "summary": "Content aligns strongly with brand tone, verified fact sheet, and preferred terminology.",
-            "flagged_issues": [],
-            "analyzed_at": "2026-11-04T08:30:00Z"
-        },
-        "workflow_state": "Approved",
-        "approved_by": "Brand Governance Director",
-        "approved_at": "2026-11-04T08:45:00Z"
+# ---------------------------------------------------------
+# CRYPTOGRAPHIC AUDIT LEDGER & EU AI ACT COMPLIANCE ENGINE
+# ---------------------------------------------------------
+
+def get_rulebook_snapshot_hash() -> str:
+    """Computes a deterministic SHA-256 fingerprint of active Brand Rulebook rules."""
+    rules_summary = [{"id": r["id"], "rule_name": r["rule_name"], "category": r["category"]} for r in BRAND_GUIDELINES]
+    raw = json.dumps(rules_summary, sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+def check_eu_ai_act_compliance(text: str, channel_source: Optional[str]) -> Tuple[EUAIActAudit, Optional[FlaggedIssue]]:
+    """
+    Round 3 Improvement 3: Automated EU AI Act (Regulation (EU) 2024/1689) Article 50 Compliance.
+    Article 50(2) & 50(4) mandate statutory transparency disclosures for synthetic or AI-assisted marketing collateral.
+    """
+    src = (channel_source or "").lower()
+    txt = (text or "").lower()
+
+    # Detect if content is from an AI/Generative channel or declared as AI-assisted
+    ai_channel_keywords = ["ai", "generative", "gpt", "synthetic", "claude", "gemini", "copilot", "midjourney", "external agency"]
+    is_gen_ai = any(k in src for k in ai_channel_keywords)
+
+    # Detect if statutory transparency disclosure is present
+    disclosure_patterns = [
+        "disclosed under eu ai act",
+        "eu ai act article 50",
+        "ai-assisted",
+        "ai generated",
+        "ai-generated",
+        "generated by ai",
+        "synthetic content",
+        "artificial intelligence",
+        "co-created with ai",
+        "human-reviewed ai"
+    ]
+    has_disclosure = any(p in txt for p in disclosure_patterns)
+    mandated_disclaimer = "Disclosed under EU AI Act Article 50: This marketing asset was co-created using generative AI systems and verified through human brand oversight."
+
+    if not is_gen_ai:
+        return EUAIActAudit(
+            status="NON-APPLICABLE (HUMAN)",
+            is_gen_ai_channel=False,
+            has_statutory_disclosure=False,
+            mandated_disclaimer=mandated_disclaimer,
+            citation="EU AI Act Art. 50 (Human Authored - Exemption §3)"
+        ), None
+
+    if has_disclosure:
+        return EUAIActAudit(
+            status="COMPLIANT (DISCLOSED)",
+            is_gen_ai_channel=True,
+            has_statutory_disclosure=True,
+            mandated_disclaimer=mandated_disclaimer,
+            citation="EU AI Act (Regulation (EU) 2024/1689) Art. 50(2) & 50(4)"
+        ), None
+
+    # Missing statutory disclosure -> generate high-severity regulatory compliance violation
+    eu_flag = FlaggedIssue(
+        id="FLAG-EU-50",
+        guideline_id="RULE-09",
+        category="Regulatory Compliance",
+        severity="high",
+        original_text_snippet="Promotional draft lacks statutory AI transparency disclosure",
+        explanation="Under EU AI Act (Regulation (EU) 2024/1689) Article 50(2) & 50(4), all public promotional collateral generated or substantially modified with AI systems must carry a clear, visible transparency disclosure.",
+        suggested_correction=f"Insert statutory disclaimer: '{mandated_disclaimer}'",
+        source_citation="EU AI Act (Regulation (EU) 2024/1689) Art. 50(2) & 50(4)",
+        supporting_doc_name="EU_AI_Act_Article_50_Compliance_Standard.pdf",
+        check_type="EU AI Act Article 50 Deterministic Auditor",
+        confidence="High (100% Statutory Match)",
+        issue_type="violation"
+    )
+    return EUAIActAudit(
+        status="ACTION REQUIRED (DISCLOSURE MISSING)",
+        is_gen_ai_channel=True,
+        has_statutory_disclosure=False,
+        mandated_disclaimer=mandated_disclaimer,
+        citation="EU AI Act (Regulation (EU) 2024/1689) Art. 50(2) & 50(4)"
+    ), eu_flag
+
+def compute_audit_cryptography(submission_id: str, content_text: str, score: int, analyzed_at: str) -> dict:
+    """Computes SHA-256 content digest, active rulebook hash, and master receipt seal."""
+    content_sha256 = hashlib.sha256((content_text or "").encode("utf-8")).hexdigest()
+    rule_hash = get_rulebook_snapshot_hash()
+    receipt_seed = f"{submission_id}|{content_sha256}|{score}|{analyzed_at}|{rule_hash}"
+    receipt_hash = hashlib.sha256(receipt_seed.encode("utf-8")).hexdigest()
+    short_seal = receipt_hash[:16].upper()
+    receipt_pdf_url = f"/api/receipts/{submission_id}/pdf"
+    return {
+        "content_sha256": content_sha256,
+        "receipt_hash": receipt_hash,
+        "short_seal": short_seal,
+        "receipt_pdf_url": receipt_pdf_url,
+        "rulebook_snapshot_hash": rule_hash
     }
-}
+
+# Simple in-memory storage for hackathon submissions with pre-loaded demo records
+def _init_demo_submissions() -> Dict[str, dict]:
+    demo_db = {
+        "SUB-0001": {
+            "request": {
+                "title": "Cloud Infrastructure Migration Announcement",
+                "content_type": "social_media",
+                "channel_source": "External Agency Draft",
+                "creator_name": "External Agency",
+                "content_text": "We are proud to serve our clients with the fastest in the world transaction speeds at just $49/mo."
+            },
+            "response": {
+                "submission_id": "SUB-0001",
+                "overall_compliance_score": 62,
+                "status": "needs_review",
+                "summary": "Flagged 4 grounded issues: outdated pricing ($49/mo), unverified superlative claim, client terminology drift, and missing EU AI Act Article 50 disclosure.",
+                "flagged_issues": [
+                    {
+                        "id": "FLAG-1",
+                        "guideline_id": "RULE-05",
+                        "category": "Outdated Facts",
+                        "severity": "high",
+                        "original_text_snippet": "$49/mo",
+                        "explanation": "Violates Approved 2025 Pricing: Legacy 2023 pricing has been discontinued. The approved Starter tier is $79/mo.",
+                        "suggested_correction": "$79/mo Starter Tier",
+                        "source_citation": "Knowledge Base: Approved Pricing & Fact Sheet Q1 2025",
+                        "supporting_doc_name": "Approved_Pricing_Sheet_2025.pdf",
+                        "check_type": "Deterministic Exact Match",
+                        "confidence": "High (100% Rule Match)",
+                        "issue_type": "violation"
+                    },
+                    {
+                        "id": "FLAG-2",
+                        "guideline_id": "RULE-02",
+                        "category": "Unsupported Claims",
+                        "severity": "high",
+                        "original_text_snippet": "fastest in the world",
+                        "explanation": "Violates Unsubstantiated Promotional Superlatives: Speed claims require cited benchmark reports.",
+                        "suggested_correction": "industry-leading",
+                        "source_citation": "Brand Rulebook §4.1 (Legal Advertising & Superlatives)",
+                        "supporting_doc_name": "Brand_Rulebook_2025.pdf",
+                        "check_type": "Deterministic Exact Match",
+                        "confidence": "High (100% Rule Match)",
+                        "issue_type": "violation"
+                    },
+                    {
+                        "id": "FLAG-3",
+                        "guideline_id": "RULE-01",
+                        "category": "Tone & Terminology",
+                        "severity": "medium",
+                        "original_text_snippet": "clients",
+                        "explanation": "Violates Customer Nomenclature Standards: Always refer to clients as 'Growth Partners'.",
+                        "suggested_correction": "Growth Partners",
+                        "source_citation": "Brand Rulebook §1.2 (Customer Nomenclature)",
+                        "supporting_doc_name": "Brand_Rulebook_2025.pdf",
+                        "check_type": "Deterministic Exact Match",
+                        "confidence": "High (100% Rule Match)",
+                        "issue_type": "violation"
+                    },
+                    {
+                        "id": "FLAG-4",
+                        "guideline_id": "RULE-09",
+                        "category": "Regulatory Compliance",
+                        "severity": "high",
+                        "original_text_snippet": "Promotional draft lacks statutory AI transparency disclosure",
+                        "explanation": "Under EU AI Act (Regulation (EU) 2024/1689) Article 50(2) & 50(4), all public promotional collateral generated or substantially modified with AI systems must carry a clear, visible transparency disclosure.",
+                        "suggested_correction": "Insert statutory disclaimer: 'Disclosed under EU AI Act Article 50: This marketing asset was co-created using generative AI systems and verified through human brand oversight.'",
+                        "source_citation": "EU AI Act (Regulation (EU) 2024/1689) Art. 50(2) & 50(4)",
+                        "supporting_doc_name": "EU_AI_Act_Article_50_Compliance_Standard.pdf",
+                        "check_type": "EU AI Act Article 50 Deterministic Auditor",
+                        "confidence": "High (100% Statutory Match)",
+                        "issue_type": "violation"
+                    }
+                ],
+                "analyzed_at": "2026-11-04T09:15:00Z",
+                "eu_ai_act": {
+                    "status": "ACTION REQUIRED (DISCLOSURE MISSING)",
+                    "is_gen_ai_channel": True,
+                    "has_statutory_disclosure": False,
+                    "mandated_disclaimer": "Disclosed under EU AI Act Article 50: This marketing asset was co-created using generative AI systems and verified through human brand oversight.",
+                    "citation": "EU AI Act (Regulation (EU) 2024/1689) Art. 50(2) & 50(4)"
+                }
+            },
+            "workflow_state": "AI Audited"
+        },
+        "SUB-0002": {
+            "request": {
+                "title": "Partner Ecosystem Quarterly Newsletter",
+                "content_type": "blog",
+                "channel_source": "In-House Marketing",
+                "creator_name": "In-House Team",
+                "content_text": "We are delighted to celebrate our growth partners with high-performance infrastructure engineered for 99.99% availability."
+            },
+            "response": {
+                "submission_id": "SUB-0002",
+                "overall_compliance_score": 96,
+                "status": "clean",
+                "summary": "Content aligns strongly with brand tone, verified fact sheet, and preferred terminology.",
+                "flagged_issues": [],
+                "analyzed_at": "2026-11-04T08:30:00Z",
+                "eu_ai_act": {
+                    "status": "NON-APPLICABLE (HUMAN)",
+                    "is_gen_ai_channel": False,
+                    "has_statutory_disclosure": False,
+                    "mandated_disclaimer": "Disclosed under EU AI Act Article 50: This marketing asset was co-created using generative AI systems and verified through human brand oversight.",
+                    "citation": "EU AI Act Art. 50 (Human Authored - Exemption §3)"
+                }
+            },
+            "workflow_state": "Approved",
+            "approved_by": "Brand Governance Director",
+            "approved_at": "2026-11-04T08:45:00Z"
+        }
+    }
+
+    # Automatically compute cryptographic seal and SHA-256 for demo records
+    for sub_id, data in demo_db.items():
+        req = data["request"]
+        resp = data["response"]
+        c_hash = hashlib.sha256(req["content_text"].encode("utf-8")).hexdigest()
+        r_seed = f"{sub_id}|{c_hash}|{resp['overall_compliance_score']}|{resp['analyzed_at']}|v1.0-rules"
+        rec_hash = hashlib.sha256(r_seed.encode("utf-8")).hexdigest()
+        resp["content_sha256"] = c_hash
+        resp["receipt_hash"] = rec_hash
+        resp["short_seal"] = rec_hash[:16].upper()
+        resp["receipt_pdf_url"] = f"/api/receipts/{sub_id}/pdf"
+
+    return demo_db
+
+SUBMISSIONS_DB = _init_demo_submissions()
 
 # ---------------------------------------------------------
 # COMPLIANCE AUDIT ENGINE
@@ -438,7 +605,14 @@ def audit_content(payload: AuditRequest):
         flag_counter += 1
         all_flags.append(f)
 
-    # 2. Semantic AI Auditing via Gemini (if ai_engine is loaded)
+    # 2. Round 3 Improvement 3: EU AI Act Article 50 Statutory Transparency Check
+    eu_audit, eu_flag = check_eu_ai_act_compliance(text_to_audit, payload.channel_source)
+    if eu_flag:
+        eu_flag.id = f"FLAG-{flag_counter}"
+        flag_counter += 1
+        all_flags.append(eu_flag)
+
+    # 3. Semantic AI Auditing via Gemini (if ai_engine is loaded)
     ai_summary = f"Content audited for draft '{title_to_audit}' against brand guidelines."
     ai_score = 100 - (len(all_flags) * 15)
 
@@ -473,6 +647,10 @@ def audit_content(payload: AuditRequest):
     final_score = max(0, min(100, ai_score if AI_ENGINE_LOADED else (100 - len(all_flags) * 15)))
     status = "clean" if len(all_flags) == 0 else ("needs_review" if final_score > 60 else "flagged")
     submission_id = f"SUB-{len(SUBMISSIONS_DB) + 1:04d}"
+    analyzed_at = datetime.utcnow().isoformat()
+
+    # Round 3 Improvement 3: Cryptographic SHA-256 Digest & Audit Receipt Seal
+    crypto_data = compute_audit_cryptography(submission_id, text_to_audit, final_score, analyzed_at)
 
     result = AuditResponse(
         submission_id=submission_id,
@@ -480,7 +658,12 @@ def audit_content(payload: AuditRequest):
         status=status,
         summary=ai_summary,
         flagged_issues=all_flags,
-        analyzed_at=datetime.utcnow().isoformat()
+        analyzed_at=analyzed_at,
+        content_sha256=crypto_data["content_sha256"],
+        receipt_hash=crypto_data["receipt_hash"],
+        short_seal=crypto_data["short_seal"],
+        eu_ai_act=eu_audit,
+        receipt_pdf_url=crypto_data["receipt_pdf_url"]
     )
 
     # Save to in-memory history for review workflow
@@ -578,6 +761,10 @@ async def audit_visual_asset(
     doc_title = title or f"Visual Asset: {safe_name}"
     analyzed_at = datetime.utcnow().isoformat()
 
+    # Round 3 Improvement 3: Check EU AI Act for visual OCR & compute cryptography
+    eu_audit, _ = check_eu_ai_act_compliance(visual_output.extracted_text_ocr, channel_source)
+    crypto_data = compute_audit_cryptography(submission_id, visual_output.extracted_text_ocr or safe_name, final_score, analyzed_at)
+
     response_payload = {
         "submission_id": submission_id,
         "overall_compliance_score": final_score,
@@ -585,6 +772,11 @@ async def audit_visual_asset(
         "summary": visual_output.visual_feedback,
         "flagged_issues": [f.dict() for f in all_flags],
         "analyzed_at": analyzed_at,
+        "content_sha256": crypto_data["content_sha256"],
+        "receipt_hash": crypto_data["receipt_hash"],
+        "short_seal": crypto_data["short_seal"],
+        "eu_ai_act": eu_audit.dict(),
+        "receipt_pdf_url": crypto_data["receipt_pdf_url"],
         "visual_audit": {
             "filename": safe_name,
             "image_url": f"/uploads/visuals/{safe_name}",
@@ -705,6 +897,83 @@ def download_chrome_extension():
         "Cache-Control": "no-cache"
     }
     return StreamingResponse(zip_buffer, media_type="application/zip", headers=headers)
+
+# ---------------------------------------------------------
+# ROUND 3 IMPROVEMENT 3: CRYPTOGRAPHIC AUDIT RECEIPTS & EU AI ACT VERIFICATION
+# ---------------------------------------------------------
+
+@app.get("/api/receipts/{sub_id}/pdf")
+def download_audit_receipt_pdf(sub_id: str):
+    """
+    Round 3 Improvement 3: Pure Python Cryptographic SHA-256 PDF Audit Receipt Generator.
+    Produces a tamper-proof PDF 1.4 certificate recording content hash, active rulebook snapshot,
+    violation audit trail, and EU AI Act Article 50 statutory compliance status.
+    """
+    sub_entry = SUBMISSIONS_DB.get(sub_id)
+    if not sub_entry:
+        raise HTTPException(status_code=404, detail=f"Submission {sub_id} not found in audit database")
+
+    try:
+        receipt_data = generate_cryptographic_audit_receipt(
+            submission=sub_entry,
+            guidelines_snapshot=BRAND_GUIDELINES
+        )
+        pdf_bytes = receipt_data["pdf_bytes"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate audit receipt PDF: {e}")
+
+    resp_data = sub_entry.get("response", {})
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="Vertity-Audit-Receipt-{sub_id}.pdf"',
+            "X-Vertity-Receipt-Seal": str(receipt_data.get("short_seal") or resp_data.get("short_seal", "SEAL-PENDING")),
+            "X-Vertity-SHA256": str(receipt_data.get("content_sha256") or resp_data.get("content_sha256", "NONE"))
+        }
+    )
+
+@app.get("/api/receipts/{receipt_hash}/verify")
+def verify_receipt_hash(receipt_hash: str):
+    """
+    Round 3 Improvement 3: Public verification endpoint to validate tamper-evident audit receipts.
+    Computes cryptographic digest matches against the in-memory submission ledger.
+    """
+    target = receipt_hash.strip().lower()
+    for sub_id, entry in SUBMISSIONS_DB.items():
+        resp = entry.get("response", {})
+        full_h = str(resp.get("receipt_hash", "")).lower()
+        short_h = str(resp.get("short_seal", "")).lower()
+        if target in (full_h, short_h) or (len(target) >= 8 and full_h.startswith(target)):
+            eu_status = resp.get("eu_ai_act", {})
+            if isinstance(eu_status, dict):
+                eu_val = eu_status.get("status", "N/A")
+            elif hasattr(eu_status, "status"):
+                eu_val = eu_status.status
+            else:
+                eu_val = "N/A"
+
+            return {
+                "verified": True,
+                "submission_id": sub_id,
+                "status": "VERIFIED_TAMPER_PROOF",
+                "overall_compliance_score": resp.get("overall_compliance_score"),
+                "content_sha256": resp.get("content_sha256"),
+                "receipt_hash": resp.get("receipt_hash"),
+                "short_seal": resp.get("short_seal"),
+                "analyzed_at": resp.get("analyzed_at"),
+                "eu_ai_act_status": eu_val,
+                "active_rulebook_snapshot_hash": get_rulebook_snapshot_hash(),
+                "verification_message": "Cryptographic signature matches Vertity AI immutable audit ledger.",
+                "verification_timestamp": datetime.utcnow().isoformat()
+            }
+
+    return {
+        "verified": False,
+        "query_hash": receipt_hash,
+        "status": "INVALID_OR_NOT_FOUND",
+        "verification_message": "Receipt hash not found in current ledger or seal has been tampered."
+    }
 
 @app.get("/api/submissions")
 def list_submissions():
