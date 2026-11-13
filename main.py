@@ -944,7 +944,7 @@ def verify_receipt_hash(receipt_hash: str):
         resp = entry.get("response", {})
         full_h = str(resp.get("receipt_hash", "")).lower()
         short_h = str(resp.get("short_seal", "")).lower()
-        if target in (full_h, short_h) or (len(target) >= 8 and full_h.startswith(target)):
+        if target in (full_h, short_h, sub_id.lower()) or (len(target) >= 8 and full_h.startswith(target)):
             eu_status = resp.get("eu_ai_act", {})
             if isinstance(eu_status, dict):
                 eu_val = eu_status.get("status", "N/A")

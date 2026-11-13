@@ -161,8 +161,8 @@ def generate_cryptographic_audit_receipt(
 
     # Master Cryptographic Seal: binds submission ID, content digest, score, rulebook hash, and timestamp
     seal_input = f"{sub_id}|{content_sha256}|{rulebook_sha256}|{score}|{analyzed_at}"
-    receipt_hash = hashlib.sha256(seal_input.encode("utf-8")).hexdigest()
-    short_seal = receipt_hash[:24].upper()
+    receipt_hash = resp.get("receipt_hash") or hashlib.sha256(seal_input.encode("utf-8")).hexdigest()
+    short_seal = resp.get("short_seal") or receipt_hash[:24].upper()
 
     # 2. EU AI Act Article 50 Statutory Transparency Check
     is_gen_ai = "generative ai" in channel.lower() or "ai tool" in channel.lower() or "[visual asset" in content_text.lower()
